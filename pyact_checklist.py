@@ -2982,7 +2982,7 @@ def NetTypeDetect():
     diff_pair_dict, npr_diff_pair_net_list = diff_detect(diff_pair_brd_data, npr_brd_data)
     # print('npr_diff_pair_net_list', npr_diff_pair_net_list)
     # start1_time = time.clock()
-
+    unmachable_diff_net_list_ind = None
     # print(1, start1_time - start_time)
     for cell in netlist_sheet.api.UsedRange.Cells:
         if cell.Value == 'Differential':
@@ -3016,7 +3016,8 @@ def NetTypeDetect():
     netlist_sheet.range(differential_ind).expand('table').clear()
     netlist_sheet.range(single_ended_ind).expand('table').clear()
     netlist_sheet.range(non_signal_net_list_ind).expand('table').clear()
-    netlist_sheet.range(unmachable_diff_net_list_ind).expand('table').clear()
+    if unmachable_diff_net_list_ind:
+        netlist_sheet.range(unmachable_diff_net_list_ind).expand('table').clear()
 
     # 人工输入单根和差分
     user_defined_differential_list = netlist_sheet.range(user_defined_differential_ind).options(expand='table',
@@ -3155,7 +3156,8 @@ def NetTypeDetect():
     # print(set(All_Layer_List))
     # print(set(diff_list))
     single_ended_half_list = set(All_Net_List) - set(_flatten(diff_list))
-    single_ended_half_list = set(single_ended_half_list) - set(npr_diff_pair_net_list)
+    if unmachable_diff_net_list_ind:
+        single_ended_half_list = set(single_ended_half_list) - set(npr_diff_pair_net_list)
     # print(_flatten(diff_list))
     # print(_flatten(single_ended_half_list))
     single_ended_list = list(set(single_ended_half_list) - set(non_signal_net_list))
@@ -3186,7 +3188,8 @@ def NetTypeDetect():
     non_signal_net_list = [[x] for x in non_signal_net_list]
     npr_diff_pair_net_list = [[x] for x in npr_diff_pair_net_list]
     netlist_sheet.range(non_signal_net_list_ind).expand('table').value = non_signal_net_list
-    netlist_sheet.range(unmachable_diff_net_list_ind).expand('table').value = npr_diff_pair_net_list
+    if unmachable_diff_net_list_ind:
+        netlist_sheet.range(unmachable_diff_net_list_ind).expand('table').value = npr_diff_pair_net_list
 
     netlist_sheet.api.Cells.Font.Name = 'Times New Roman'
     netlist_sheet.api.Cells.Font.Size = 12
