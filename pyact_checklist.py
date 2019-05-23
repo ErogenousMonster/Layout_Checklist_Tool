@@ -197,6 +197,8 @@
 # 2019.04.15 何鵬提出關於單根信號線分叉不完整，兩個元器件共pin時，只會隨機顯示其中一個的問題，已解決
 # 2019.05.06 陈敏提出的关于线路回流的问题，已解决
 # 2019.05.20 在制作choose_test_point工具时，发现从 Diffpair Gap Report 中获取的差分对信号线组并不完整，因此作出修改 ——Gorgeous
+# 2019.05.23 为了防止连线坐标点的误差，将坐标点的坐标值取一位小数 ——Gorgeous
+
 
 from xlwings import Book
 import xlwings as xw
@@ -1132,7 +1134,7 @@ def LoadDDRTable():
 def power_trace():
     global Net_brd_data, non_signal_net_list
     allegro_report_path, layer_type_dict, start_sch_name_list, progress_ind, All_Layer_List = GetSetting()
-    SCH_brd_data, Net_brd_data, diff_pair_brd_data, stackup_brd_data = read_allegro_data(allegro_report_path)
+    SCH_brd_data, Net_brd_data, diff_pair_brd_data, stackup_brd_data, npr_brd_data = read_allegro_data(allegro_report_path)
     _, _, _, non_signal_net_list = GetNetList()
     # Net_brd_data = read_allegro_data(allegro_report_path)
     wb = Book(xlsm_path).caller()
@@ -1499,6 +1501,13 @@ def net_detect(Net_brd_data, SCH_object_list):
         # 按 check_net_list 中的 net 名顺序列出每个 net 对应的叠层，长宽及过孔的坐标值
         layer_list, width_list, length_list, xy1_list, xy2_list = zip(
             *[(x[2], float(x[5]), float(x[6]), x[-1][0], x[-1][1]) for x in net_data if net == x[0]])
+
+        # 将坐标值取一位小数
+        # print('xy1_list', xy1_list)
+        xy1_list = [[y[:-1] for y in x] for x in xy1_list]
+        xy2_list = [[y[:-1] for y in x] for x in xy2_list]
+        # print('xy2_list', xy2_list)
+
         segment_list = xrange(1, len(layer_list) + 1)
         # print (net)
         # print(layer_list, width_list, length_list, xy1_list, xy2_list)
@@ -1966,7 +1975,7 @@ def topology_extract1(net_name, start_sch_name, start_sch_pin=None):
     #         or sch_name_list_start.count(start_sch_name) >= 2 and \
     #         len(seg_ind_list_original) <= sch_name_list_start.count(start_sch_name)\
     #         or start_seg_ind1_list == []:
-    print('start_sch_name', start_sch_name)
+    # print('start_sch_name', start_sch_name)
     # print('previous_sch_pin_keys', previous_sch_pin_keys)
     # if previous_sch_pin_keys:
     #     for i in previous_sch_pin_keys:
@@ -2067,7 +2076,7 @@ def topology_extract2(start_net_name, start_sch_name):
 
     try:
         topology_seg_ind = topology_extract1(start_net_name, start_sch_name, start_sch_pin=None)
-        print('topology_seg_ind', topology_seg_ind)
+        # print('topology_seg_ind', topology_seg_ind)
     except:
         raise ValueError('%s-%s can\'t be extracted!' % (start_sch_name, start_net_name))
 
@@ -2117,8 +2126,8 @@ def topology_extract2(start_net_name, start_sch_name):
             pin_list.append(None)
 
         sch_nochange_list = sch_list
-        print('first_sch_list', sch_list)
-        print('first_pin_list', pin_list)
+        # print('first_sch_list', sch_list)
+        # print('first_pin_list', pin_list)
         previous_pin_list1 = copy.deepcopy(pin_list)
         previous_pin_list2 = copy.deepcopy(pin_list)
         previous_sch_pin_list1 = [etch_line_old.GetConnComp(line[-1])]
@@ -2127,7 +2136,7 @@ def topology_extract2(start_net_name, start_sch_name):
         # print('first_previous_sch_pin_list1', previous_sch_pin_list1)
         for ind in xrange(len(sch_nochange_list)):
             next_net, next_pin = net_mapping(sch_nochange_list[ind], pin_list[ind])
-            print('next_net, next_pin', next_net, next_pin)
+            # print('next_net, next_pin', next_net, next_pin)
             # next_net通常为单个线名，下列代码是否可以改写为 if next_net:
             for idxx_ in xrange(len(next_net)):
                 # start_net_name为每段信号线的名称， line为从两段线开始的ind对
@@ -2146,10 +2155,10 @@ def topology_extract2(start_net_name, start_sch_name):
                 if net_list[-1] in non_signal_net_list:
                     topology_list[-1].append(net_list[-1])
 
-            # print('topology_list', topology_list)
-            print('first_net_list', net_list)
-            print('first_next_pin_list', next_pin_list)
-            print('first_sch_list', sch_list)
+            # # print('topology_list', topology_list)
+            # print('first_net_list', net_list)
+            # print('first_next_pin_list', next_pin_list)
+            # print('first_sch_list', sch_list)
             # print()
             net_list_start = net_list
             end = True
@@ -2176,7 +2185,7 @@ def topology_extract2(start_net_name, start_sch_name):
                 my_flag = 0
                 # print(1111, topology_list)
                 for ij1 in xrange(len(net_list)):
-                    print(ij1, net_list[ij1], net_list)
+                    # print(ij1, net_list[ij1], net_list)
                     i += 1
                     # 下段代码为重复代码，可以写成函数简化
                     # 只进入信号线名
@@ -2192,12 +2201,12 @@ def topology_extract2(start_net_name, start_sch_name):
 
                         try:
                             # 找出下一条线的段id
-                            print('net_list', net_list)
-                            print('sch_list', sch_list)
-                            print('next_pin_list_start', next_pin_list)
+                            # print('net_list', net_list)
+                            # print('sch_list', sch_list)
+                            # print('next_pin_list_start', next_pin_list)
                             # print('previous_pin_list1', previous_pin_list1)
                             # print('previous_pin_list2', previous_pin_list2)
-                            print('before', net_list[ij1], sch_list[ij1], next_pin_list[ij1])
+                            # print('before', net_list[ij1], sch_list[ij1], next_pin_list[ij1])
                             # if previous_pin_list:
                             topology_seg_ind = topology_extract1(net_list[ij1], sch_list[ij1],
                                                                     start_sch_pin=next_pin_list[ij1])
@@ -2209,7 +2218,7 @@ def topology_extract2(start_net_name, start_sch_name):
                             #                                          start_sch_pin=next_pin_list[ij1],
                             #                                          previous_sch_pin=None)
                             #     print('topology_extract12')
-                            print('topology_seg_ind', topology_seg_ind)
+                            # print('topology_seg_ind', topology_seg_ind)
                             # if start_net_name == 'USB3_P1_TX1P':
                             #     print(topology_seg_ind)
                             for ind in xrange(len(topology_seg_ind)):
@@ -2257,8 +2266,8 @@ def topology_extract2(start_net_name, start_sch_name):
                                     pin_list_temp.append(None)
                                     previous_sch_pin_temp1.append(None)
                                     previous_sch_pin_temp2.append(None)
-                                print('net_list[ij1]', net_list[ij1])
-                                print('topology_seg_ind[ind]', topology_seg_ind[ind])
+                                # print('net_list[ij1]', net_list[ij1])
+                                # print('topology_seg_ind[ind]', topology_seg_ind[ind])
                                 format_item_list = topology_format(net_list[ij1], topology_seg_ind[ind])
                                 format_flag = False
                                 if len(format_item_list) > 1:
@@ -2267,8 +2276,8 @@ def topology_extract2(start_net_name, start_sch_name):
                                     pin_list_temp.append(pin_list_temp[-1])
                                     previous_sch_pin_temp1.append(previous_sch_pin_temp1[-1])
                                     previous_sch_pin_temp2.append(previous_sch_pin_temp2[-1])
-                                print('sch_list_temp', sch_list_temp)
-                                print('pin_list_temp', pin_list_temp)
+                                # print('sch_list_temp', sch_list_temp)
+                                # print('pin_list_temp', pin_list_temp)
                                 # try:
                                 #     previous_sch_pin_list = topology_list[i][-2].split('[')[-1].strip(']').split('-')
                                 # except:
@@ -2280,8 +2289,8 @@ def topology_extract2(start_net_name, start_sch_name):
                                 #     if type(items) not in [type(2.0), type(2)] and items.find(':') == -1:
                                 #         previous_net = items
                                 #         break
-                                print('format_item_list', format_item_list)
-                                print('previous_net', previous_net)
+                                # print('format_item_list', format_item_list)
+                                # print('previous_net', previous_net)
                                 next_net, next_pin = net_mapping(sch_list_temp[-1], pin_list_temp[-1],
                                                                     previous_net=previous_net)
                                 # print('next_net', next_net)
@@ -2345,7 +2354,7 @@ def topology_extract2(start_net_name, start_sch_name):
                                                 topology_list[i] + format_item_list[0])
                                             topology_out_list.append(
                                                 topology_list[i] + format_item_list[0])
-                                            print('topology_out_list2', topology_list[i] + format_item_list[0])
+                                            # print('topology_out_list2', topology_list[i] + format_item_list[0])
                         except:
                             topology_list_temp.append(topology_list[i] + ['Exception;%s' % net_list[ij1]])
                             topology_out_list.append(topology_list[i] + ['Exception;%s' % net_list[ij1]])
@@ -2369,7 +2378,7 @@ def topology_extract2(start_net_name, start_sch_name):
                     else:
                         topology_list_temp.append(topology_list[i])
                         topology_out_list.append(topology_list[i])
-                        print('topology_out_list4', topology_list[i])
+                        # print('topology_out_list4', topology_list[i])
                         # if start_net_name == 'GPP_CLK1N_LAN':
                         #     print(topology_list[j])
                         sch_list_temp.append(None)
@@ -2382,16 +2391,16 @@ def topology_extract2(start_net_name, start_sch_name):
                     #     print(topology_list)
                 # print(2, topology_list_temp)
                 topology_list = list(topology_list_temp)
-                print('topology_list_final', topology_list)
+                # print('topology_list_final', topology_list)
                 # if start_net_name == 'DPC_AUX_DP_C':
                 #     print(topology_list)
 
                 net_list = list(net_list_temp)
-                print('last_net_list', net_list)
-                print('pre_net_list', pre_net_list)
+                # print('last_net_list', net_list)
+                # print('pre_net_list', pre_net_list)
 
                 next_pin_list = list(next_pin_list_temp)
-                print('last_next_pin_list', next_pin_list)
+                # print('last_next_pin_list', next_pin_list)
 
                 # previous_sch_pin_list1 = list(previous_sch_pin_temp1)
                 # print('last_previous_sch_pin_list1', previous_sch_pin_list1)
@@ -2410,7 +2419,7 @@ def topology_extract2(start_net_name, start_sch_name):
                 # print('last_previous_pin_list2', previous_pin_list2)
 
                 sch_list = list(sch_list_temp)
-                print('last_sch_list', sch_list)
+                # print('last_sch_list', sch_list)
                 # if start_net_name == 'USB2_N14':
                 #     print(1111, net_list)
                 #     print(2222, pre_net_list)
@@ -3422,7 +3431,7 @@ def RunSignalTopology():
     # 获取值
     # Read Allegro Report Data
     global SCH_object_list, net_object_list, All_Net_List
-    SCH_brd_data, Net_brd_data, diff_pair_brd_data, stackup_brd_data = read_allegro_data(allegro_report_path)
+    SCH_brd_data, Net_brd_data, diff_pair_brd_data, stackup_brd_data, npr_brd_data = read_allegro_data(allegro_report_path)
     # print(SCH_brd_data.GetData())
     SCH_object_list = SCH_detect(SCH_brd_data)
     net_object_list = net_detect(Net_brd_data, SCH_object_list)
@@ -3475,7 +3484,7 @@ def RunSignalTopology():
                     topology_list = topology_extract2(check_net_name, check_sch_name)
                     # print('topology_list', topology_list)
                     # print(11111, topology_list[0])
-                    # if check_net_name == 'USB2_N14':
+                    # if check_net_name == 'GFX_PCIE_TX_N14':
                     #     print(11111, topology_list)
                     topology_1_list = topology_list_format_simplified(topology_list)
                     # print('topology_1_list', topology_1_list)
@@ -4544,7 +4553,7 @@ def CheckTopology(specified_range=None):
     # print(layer_type_dict)
 
     # 获取每层的厚度以及总的厚度
-    SCH_brd_data, Net_brd_data, diff_pair_brd_data, stackup_brd_data = read_allegro_data(allegro_report_path)
+    SCH_brd_data, Net_brd_data, diff_pair_brd_data, stackup_brd_data, npr_brd_data = read_allegro_data(allegro_report_path)
     layerLength_list = []
     data = stackup_brd_data.GetData()
     data = data[1:-3]
@@ -6636,7 +6645,7 @@ def LoadStackup():
     # 获取报告绝对路径，叠层字典，元件名称列表，progress坐标，叠层名称列表（去重）
     allegro_report_path, layer_type_dict, start_sch_name_list, progress_ind, All_Layer_List = GetSetting()
     # 获取值
-    SCH_brd_data, Net_brd_data, diff_pair_brd_data, stackup_brd_data = read_allegro_data(allegro_report_path)
+    SCH_brd_data, Net_brd_data, diff_pair_brd_data, stackup_brd_data, npr_brd_data = read_allegro_data(allegro_report_path)
     layer_list, type_list = getalllayerlist(stackup_brd_data)
 
     for cell in setting_sheet.api.UsedRange.Cells:
@@ -6700,7 +6709,7 @@ def LoadTXList():
         # 获得键
         allegro_report_path, layer_type_dict, start_sch_name_list, progress_ind, All_Layer_List = GetSetting()
         # 获得值
-        SCH_brd_data, Net_brd_data, diff_pair_brd_data, stackup_brd_data = read_allegro_data(allegro_report_path)
+        SCH_brd_data, Net_brd_data, diff_pair_brd_data, stackup_brd_data, npr_brd_data = read_allegro_data(allegro_report_path)
         SCH_content = SCH_brd_data.GetData()
 
         SCH_dict = dict()
@@ -7700,7 +7709,7 @@ if __name__ == '__main__':
         if i.find('.xlsm') > -1:
             xlsm_path = r'%s' % i
             break
-    # xlsm_path = r'C:\Users\Tommy\Desktop\Software_project\bug\D10_Bison+X02_SIM_Checklist_A1.20_20190415.xlsm'
+    # xlsm_path = r'C:\Users\Tommy\Desktop\Software_project\bug\PyACT_for_Checklist_template1.0.xlsm'
     # xlsm_path = r'C:\Users\Tommy\Desktop\Checklist_case\VINSON_SI_SIM_Checklist_A1.1_20180601.xlsm'
     # xlsm_path = r'C:\Users\Tommy\Desktop\Checklist_case\PRECISION-MICRO-B00_SIM_Checklist-A1.5_20180530.xlsm'
     Book(xlsm_path).set_mock_caller()
