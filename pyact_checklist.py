@@ -198,6 +198,7 @@
 # 2019.05.06 陈敏提出的关于线路回流的问题，已解决
 # 2019.05.20 在制作choose_test_point工具时，发现从 Diffpair Gap Report 中获取的差分对信号线组并不完整，因此作出修改 ——Gorgeous
 # 2019.05.23 为了防止连线坐标点的误差，将坐标点的坐标值取一位小数 ——Gorgeous
+# 2019.05.27 由于无法获得正确的电源线信息，无法准确分类出电源线与单根线，所以将所有带有\dV字样的信号线全部归为单根线 ——Gorgeous
 
 
 from xlwings import Book
@@ -1341,15 +1342,23 @@ def diff_detect(diff_pair_brd_data, npr_brd_data):
     npr_diff_pair_net_list = []
     part_diff_net_list = list(diff_pair_dict.keys())
     for items in npr_brd_data:
-        if items[0] not in part_diff_net_list:
+        if items[-1] and items[0] not in part_diff_net_list:
             npr_diff_pair_net_list.append(items[0])
 
     return diff_pair_dict, npr_diff_pair_net_list
 
 
 # 获得电源线和地线的名称列表
-def get_exclude_netlist(netlist):  # netlist = All_Net_List
+def get_exclude_netlist(netlist, npr_brd_data):  # netlist = All_Net_List
     # Get pwr and gnd net list
+    PWR_Net_List_pro = []
+    # 从properties on Nets Report中获取电源线
+    for item in npr_brd_data:
+        # print(item)
+        if item[1] == 'PWR':
+            PWR_Net_List_pro.append(item[0])
+
+    PWR_Net_List_pro = list(set(PWR_Net_List_pro))
 
     PWR_Net_KeyWord_List = ['^\+.*', '^-.*',
                             'VREF|VPP|VSS|PWR|VREG|VCORE|VCC|VT|VDD|VLED|PWM|VDIMM|VGT|VIN|[^S](VID)|VR',
@@ -1358,8 +1367,9 @@ def get_exclude_netlist(netlist):  # netlist = All_Net_List
                             '.*V[0-9]P.*', '.*V[0-9]V.*', '.*[0-9]V[0-9].*', '^[0-9]V.*', '^[0-9][0-9]V.*',
                             '.*[0-9]\.[0-9]V.*', '.*[0-9]_[0-9]V.*', '.*_[0-9]V.*', '.*_[0-9][0-9]V.*',
                             '.*_[0-9]\.[0-9]V.*', '.*[0-9]P[0-9]V.*', '.[0-9]*P[0-9][0-9]V.*', '.*V_[0-9]P[0-9].*',
-                            '.*\+[0-9]V.*', '.*\+[0-9][0-9]V.*']
-    PWR_Net_List = [net for net in netlist for keyword in PWR_Net_KeyWord_List if re.findall(keyword, net) != []]
+                            '.*\+[0-9]V.*', '.*\+[0-9][0-9]V.*', '.*?\d+V_S\d$', '\dV']
+    PWR_Net_List = [net for net in netlist for keyword in PWR_Net_KeyWord_List if re.findall(keyword, net) != []]\
+                   + PWR_Net_List_pro
     # print(PWR_Net_List)
     PWR_Net_List = sorted(list(set(PWR_Net_List)))
 
@@ -2222,7 +2232,7 @@ def topology_extract2(start_net_name, start_sch_name):
                             # if start_net_name == 'USB3_P1_TX1P':
                             #     print(topology_seg_ind)
                             for ind in xrange(len(topology_seg_ind)):
-                                print(i, ind, topology_seg_ind[ind])
+                                # print(i, ind, topology_seg_ind[ind])
                                 # 找出与芯片相接的线
                                 if etch_line.GetConnectedSCHListBySegInd(topology_seg_ind[ind][-1]) is not None:
                                     previous_sch_pin_temp1.append(
@@ -2341,7 +2351,7 @@ def topology_extract2(start_net_name, start_sch_name):
                                                     topology_list[i] + format_item)
                                                 topology_out_list.append(
                                                     topology_list[i] + format_item)
-                                                print('topology_out_list1', topology_list[i] + format_item)
+                                                # print('topology_out_list1', topology_list[i] + format_item)
                                         else:
                                             # if next_net[0] is None:
                                             #     topology_list_temp.append(
@@ -2368,7 +2378,7 @@ def topology_extract2(start_net_name, start_sch_name):
                     elif net_list[ij1] in non_signal_net_list and j != 0:
                         topology_list_temp.append(topology_list[i] + [net_list[ij1]])
                         topology_out_list.append(topology_list[i] + [net_list[ij1]])
-                        print('topology_out_list3', topology_list[i] + [net_list[ij1]])
+                        # print('topology_out_list3', topology_list[i] + [net_list[ij1]])
                         sch_list_temp.append(None)
                         pin_list_temp.append(None)
                         previous_sch_pin_temp1.append(None)
@@ -2831,9 +2841,7 @@ def LoadAllegroFile():
             d_tmp_ = []
             for npr_item in d_tmp:
                 npr_item_list = npr_item.split(',')
-                # 如果diff pair有值
-                if npr_item_list[25]:
-                    d_tmp_.append(npr_item_list[0] + ',' + npr_item_list[25])
+                d_tmp_.append(npr_item_list[0] + ',' + npr_item_list[1] + ',' + npr_item_list[25])
 
             d = '\n'.join(d[0:5] + d_tmp_) + '\n'
 
@@ -3149,7 +3157,7 @@ def NetTypeDetect():
 
         diff_list = sorted(diff_list)
     # Get the "non_signal_net_list"
-    non_signal_net_list, _, _ = get_exclude_netlist(All_Net_List)
+    non_signal_net_list, _, _ = get_exclude_netlist(All_Net_List, npr_brd_data)
     # Update the "non_signal_net_list" with the "user_defined_non_signal_list"
 
     non_signal_net_list += user_defined_non_signal_list
@@ -3497,6 +3505,9 @@ def RunSignalTopology():
                         check_sch_ok_net_dict[check_sch_name] += [check_net_name]
                     ok_check_net_list.append(check_net_name)
                     ok_count += 1
+                    # print(ok_count)
+                    # print(check_net_name)
+                    # print('')
                     # print(ok_count)
                     setting_sheet.range(progress_ind).value = 'Extracting...%d/%d' % (ok_count, total_net_number)
                 except:  # Exception as e:
