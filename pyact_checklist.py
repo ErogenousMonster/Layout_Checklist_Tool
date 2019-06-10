@@ -199,6 +199,7 @@
 # 2019.05.20 在制作choose_test_point工具时，发现从 Diffpair Gap Report 中获取的差分对信号线组并不完整，因此作出修改 ——Gorgeous
 # 2019.05.23 为了防止连线坐标点的误差，将坐标点的坐标值取一位小数 ——Gorgeous
 # 2019.05.27 由于无法获得正确的电源线信息，无法准确分类出电源线与单根线，所以将所有带有\dV字样的信号线全部归为单根线 ——Gorgeous
+# 2019.06.10 将Netlist中的User Defined single net无法添加到single net中的bug进行了修复 ——Gorgeous
 
 
 from xlwings import Book
@@ -3043,6 +3044,12 @@ def NetTypeDetect():
     user_defined_single_end_signal_list = netlist_sheet.range(user_defined_single_end_signal_list_ind).options(
         expand='table', ndim=1).value
     # diff_pair_dict = diff_detect(diff_pair_brd_data)
+    # 将差分信号中的其他信号删除
+    for cut_net in user_defined_differential_list + user_defined_single_end_signal_list:
+        try:
+            del diff_pair_dict[cut_net]
+        except:
+            pass
     diff_list = []
     for x in diff_pair_dict.keys():
         diff_list.append([x, diff_pair_dict[x]])
@@ -7720,7 +7727,7 @@ if __name__ == '__main__':
         if i.find('.xlsm') > -1:
             xlsm_path = r'%s' % i
             break
-    # xlsm_path = r'C:\Users\Tommy\Desktop\Software_project\bug\PyACT_for_Checklist_template1.0.xlsm'
+    # xlsm_path = r'C:\Users\Tommy\Desktop\Software_project\bug\D10 SFF3\D10_SFF3_SIM_Checklist_A1.0_SE.xlsm'
     # xlsm_path = r'C:\Users\Tommy\Desktop\Checklist_case\VINSON_SI_SIM_Checklist_A1.1_20180601.xlsm'
     # xlsm_path = r'C:\Users\Tommy\Desktop\Checklist_case\PRECISION-MICRO-B00_SIM_Checklist-A1.5_20180530.xlsm'
     Book(xlsm_path).set_mock_caller()
