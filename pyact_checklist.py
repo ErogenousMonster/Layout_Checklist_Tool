@@ -202,7 +202,6 @@
 # 2019.06.10 将Netlist中的User Defined single net无法添加到single net中的bug进行了修复 ——Gorgeous
 # 2019.06.12 添加了可能一根线的一段同时连接3个pin的情况，修改了net_detect中对于pin中点和线端点范围的值，
 # 修改了topology_format中的表达方式，将三个芯片依次作为终点显示 ——Gorgeous
-# 2019.06.28 添加了两个元器件只有一个共pin或者完全重合的情况
 
 
 from xlwings import Book
@@ -1613,10 +1612,8 @@ def net_detect(Net_brd_data, SCH_object_list):
             etch_line(net, segment_list, seg_width_dict, seg_length_dict, seg_layer_dict, seg_xy_dict1, seg_xy_dict2,
                       connected_SCH_Pin_dict))
         # # print(connected_SCH_Pin_dict)
-        # if net == 'P3E_CPU0_PE2_TXP0':
-        if net == 'USB3_DTX_P1':
-
-            print(99999, connected_SCH_Pin_dict)
+        # if net == 'DP1_AUX_CPU_P':
+        #     # print(99999, connected_SCH_Pin_dict)
         # # print(net, segment_list, seg_width_dict, seg_length_dict, seg_layer_dict, seg_xy_dict1, seg_xy_dict2, connected_SCH_Pin_dict)
     end_time = time.clock()
     # print('net_detect', end_time - start_time)
@@ -1674,44 +1671,166 @@ def get_connected_net_list_by_SCH_name(SCH_name):  # Nets in Exclude_Net_List ar
 # 例如 ['USB3_CMC_TXDN1', '[FRONT_USB_HEADER-5]:BOTTOM:5.1', 976.98, 'TOP:5.1:[U4-2]', 65.81, '[U4-2]:TOP:5.1:[U4-9]', 40.0, '[U4-9]:TOP:5.1:[LU2-2]', 81.27]
 def topology_format(net_name, topology_seg_ind):
     # Formatting function of exported results
-
+    # print('net_name', net_name)
     net = get_net_object_by_name(net_name)
     # if net_name == 'PCH_HSOP0':
     #     print(net.GetName(), net.GetSegmentList(), net.GetWidth(), net.GetLength(), net.GetLayer())
-    topology_formatted = list()
+    topology_formatted, topology_formatted_extra, topology_formatted_extra3 = [], [], []
+    double_flag = False
+    three_flag = False
 
     for i in xrange(len(topology_seg_ind)):
         layer = net.GetLayer(topology_seg_ind[i][0])
         width = net.GetWidth(topology_seg_ind[i][0])
         length = net.GetLength(topology_seg_ind[i][0])
 
-        # if net_name == 'USB3_CMC_TXDN1':
-        #     print(i,layer, width, length)
         # 不懂为什么要将奇偶情况分开讨论
+        # 长度大于1才匹配
         if float(length) > 1:
+            items = net.GetConnectedSCHListBySegInd(topology_seg_ind[i])
+            # if net_name == 'SPI_CLK_ROM1':
+            # print('')
+            # print('*************************************************************')
+            # print('topology_seg_ind[i]', topology_seg_ind[i])
+            # print('items', items)
+            # print('*************************************************************')
             if i % 2 == 0:
+                # print('items', items)
                 # 判断是否是芯片相接
                 # 与芯片相接则写成 [sch-pin]:layer:width 的形式
-                if net.GetConnectedSCHListBySegInd(topology_seg_ind[i]) is not None:
-                    content = '%s:%s'%(layer, width)
-                    for (sch, pin) in net.GetConnectedSCHListBySegInd(topology_seg_ind[i]):
-                        content = '[%s-%s]:'%(sch, pin) + content
-                        # if net_name == 'PCH_HSOP0':
-                        #     print(1, content)
+                # print('out', topology_seg_ind[i], net.GetConnectedSCHListBySegInd(topology_seg_ind[i]))
+                if items is not None:
+                    content = '%s:%s' % (layer, width)
+                    content_extra = '%s:%s' % (layer, width)
+                    content_extra3 = '%s:%s' % (layer, width)
+                    # print('in', topology_seg_ind[i], net.GetConnectedSCHListBySegInd(topology_seg_ind[i]))
+                    if len(items) == 3:
+                        # print(3, items)
+                        three_flag = True
+                        # 顺序存入
+                        for (sch, pin) in net.GetConnectedSCHListBySegInd(topology_seg_ind[i]):
+
+                            content = '[%s-%s]:' % (sch, pin) + content
+                            # content_extra = '[%s-%s]:' % (sch, pin) + content_extra
+                        # 反向存入
+                        for (sch, pin) in items[::-1]:
+                            content_extra = content_extra + ':[%s-%s]' % (sch, pin)
+
+                        for (sch, pin) in items[::2] + [items[1]]:
+                            # if net_name == 'SPI_CLK_ROM1':
+                            # print(sch, pin)
+                            content_extra3 = content_extra3 + ':[%s-%s]' % (sch, pin)
+                    elif len(items) == 1:
+                        for (sch, pin) in net.GetConnectedSCHListBySegInd(topology_seg_ind[i]):
+                            content = '[%s-%s]:' % (sch, pin) + content
+                            content_extra = '[%s-%s]:' % (sch, pin) + content_extra
+                            content_extra3 = '[%s-%s]:' % (sch, pin) + content_extra3
+                    elif len(items) > 1:
+                        double_flag = True
+                        # 顺序存入
+                        for (sch, pin) in net.GetConnectedSCHListBySegInd(topology_seg_ind[i]):
+                            # if net_name == 'SPI_CLK_ROM1':
+                            #     print(sch, pin)
+                            content = '[%s-%s]:' % (sch, pin) + content
+                            # content_extra = '[%s-%s]:' % (sch, pin) + content_extra
+                        # 反向存入
+                        for (sch, pin) in items[::-1]:
+                            content_extra = content_extra + ':[%s-%s]' % (sch, pin)
+                            content_extra3 = content_extra3 + ':[%s-%s]' % (sch, pin)
                 # 如不与芯片相接则写成 layer:width 的形式
                 else:
-                    content = '%s:%s'%(layer, width)
-                # print(1,content)
+                    content = '%s:%s' % (layer, width)
+                    content_extra = '%s:%s' % (layer, width)
+                    content_extra3 = '%s:%s' % (layer, width)
+                # print(1, content)
+                # print(1, content_extra)
             else:
-                if net.GetConnectedSCHListBySegInd(topology_seg_ind[i]) is not None:
-                    for (sch, pin) in net.GetConnectedSCHListBySegInd(topology_seg_ind[i]):
-                        content = content + ':[%s-%s]'%(sch, pin)
+                # print(2, items)
                 # print(2, content)
-                topology_formatted.append(content)
-                topology_formatted.append(length)
+                # print(2, content_extra)
+                # print('items', items)
+                if items is not None:
+                    if len(items) == 3:
+                        # print(items)
+                        # items_copy = copy.deepcopy(items)
+                        three_flag = True
+                        for (sch, pin) in items:
+                            content = content + ':[%s-%s]' % (sch, pin)
 
+                        topology_formatted.append(content)
+                        topology_formatted.append(length)
+                        # print(3, content)
 
-    return [net_name] + topology_formatted
+                        for (sch, pin) in items[::-1]:
+                            content_extra = content_extra + ':[%s-%s]' % (sch, pin)
+
+                        for (sch, pin) in items[::2] + [items[1]]:
+                            print(sch, pin)
+                            content_extra3 = content_extra3 + ':[%s-%s]' % (sch, pin)
+
+                        # print(3, content_extra)
+                        topology_formatted_extra.append(content_extra)
+                        topology_formatted_extra.append(length)
+                        topology_formatted_extra3.append(content_extra3)
+                        topology_formatted_extra3.append(length)
+                    elif len(items) == 1:
+                        for (sch, pin) in items:
+                            content = content + ':[%s-%s]' % (sch, pin)
+                            content_extra = content_extra + ':[%s-%s]' % (sch, pin)
+                            content_extra3 = content_extra3 + ':[%s-%s]' % (sch, pin)
+                        topology_formatted.append(content)
+                        topology_formatted.append(length)
+                        topology_formatted_extra.append(content_extra)
+                        topology_formatted_extra.append(length)
+                        topology_formatted_extra3.append(content_extra3)
+                        topology_formatted_extra3.append(length)
+                        # print(4, content)
+                    # print(4, content_extra)
+                    elif len(items) > 1:
+                        double_flag = True
+                        for (sch, pin) in items:
+                            content = content + ':[%s-%s]' % (sch, pin)
+
+                        topology_formatted.append(content)
+                        topology_formatted.append(length)
+                        # print(3, content)
+
+                        for (sch, pin) in items[::-1]:
+                            content_extra = content_extra + ':[%s-%s]' % (sch, pin)
+                            content_extra3 = content_extra3 + ':[%s-%s]' % (sch, pin)
+
+                        # print(3, content_extra)
+                        topology_formatted_extra.append(content_extra)
+                        topology_formatted_extra.append(length)
+                        topology_formatted_extra3.append(content_extra3)
+                        topology_formatted_extra3.append(length)
+                else:
+
+                    topology_formatted.append(content)
+                    topology_formatted.append(length)
+                    topology_formatted_extra.append(content_extra)
+                    topology_formatted_extra.append(length)
+                    topology_formatted_extra3.append(content_extra3)
+                    topology_formatted_extra3.append(length)
+
+    # print('topology_formatted', topology_formatted)
+    # print('topology_formatted_extra', topology_formatted_extra)
+    # print('topology_formatted_extra3', topology_formatted_extra3)
+    if three_flag:
+        # print('')
+        # print(3, topology_formatted_extra3)
+        # print('')
+        # print('double_flag', [[net_name] + topology_formatted, [net_name] + topology_formatted_extra])
+        return [[net_name] + topology_formatted, [net_name] + topology_formatted_extra,
+                [net_name] + topology_formatted_extra3]
+    elif double_flag:
+        # print('')
+        # print(2, topology_formatted_extra3)
+        # print('')
+        return [[net_name] + topology_formatted, [net_name] + topology_formatted_extra]
+    else:
+        # print('single_flag', [[net_name] + topology_formatted])
+        return [[net_name] + topology_formatted]
 
 
 # 返回每个信号线的各段ind
@@ -2039,7 +2158,7 @@ def topology_extract2(start_net_name, start_sch_name):
     try:
         topology_seg_ind = topology_extract1(start_net_name, start_sch_name, start_sch_pin=None)
         # # print('topology_seg_ind', topology_seg_ind)
-        print('topology_seg_ind', topology_seg_ind)
+        # print('topology_seg_ind', topology_seg_ind)
     except:
         # print('')
         # print('topology_extract1_error')
@@ -2052,8 +2171,7 @@ def topology_extract2(start_net_name, start_sch_name):
     # 显示一根信号线的数据，并指出与之相连的下一根信号线
     for line in topology_seg_ind:
         sch_list, pin_list, net_list, next_pin_list, previous_pin_list1, previous_pin_list2 = [], [], [], [], [], []
-        print('')
-        print('line', line)
+
         # 判断最后一个线名是否与芯片相连接,因为经过过孔或者信号线宽度变化也会分段
         # 最后一个线名是否与芯片相连接才能进入循环
         # # print('etch_line', etch_line.conn_schpin)
@@ -2085,7 +2203,7 @@ def topology_extract2(start_net_name, start_sch_name):
             for ind in xrange(len(etch_line_old.GetConnectedSCHListBySegInd(line[-1]))):
                 sch_list.append(etch_line_old.GetConnectedSCHListBySegInd(line[-1])[ind][0])
                 pin_list.append(etch_line_old.GetConnectedSCHListBySegInd(line[-1])[ind][1])
-            print('sch_list_in', sch_list, pin_list)
+            # # print('sch_list_in', sch_list)
 
         else:
             # 得出每条信号线所经过的芯片的名称以及pin脚名称列表
@@ -2099,35 +2217,33 @@ def topology_extract2(start_net_name, start_sch_name):
         previous_pin_list2 = copy.deepcopy(pin_list)
         previous_sch_pin_list1 = [etch_line_old.GetConnComp(line[-1])]
         previous_sch_pin_list2 = [etch_line_old.GetConnComp(line[-2])]
-        # topology_list_final = []
         # # print('first_previous_pin_list1', previous_pin_list1)
         # # print('first_previous_sch_pin_list1', previous_sch_pin_list1)
         for ind in xrange(len(sch_nochange_list)):
             next_net, next_pin = net_mapping(sch_nochange_list[ind], pin_list[ind])
-            print('')
-            print('next_net, next_pin', next_net, next_pin)
+            # # print('next_net, next_pin', next_net, next_pin)
             # next_net通常为单个线名，下列代码是否可以改写为 if next_net:
             for idxx_ in xrange(len(next_net)):
                 # start_net_name为每段信号线的名称， line为从两段线开始的ind对
 
                 # format_items = topology_format(start_net_name, line)
 
-                # topology_list = topology_list_final + topology_format(start_net_name, line)
                 topology_list = topology_format(start_net_name, line)
 
                 net_list.append(next_net[idxx_])
                 next_pin_list.append(next_pin[idxx_])
-                # sch_list.append(sch_nochange_list[ind])
+
                 # 如果存在信号线，则存入信号线所经过的芯片名称
                 if idxx_ > 0:
                     sch_list.append(sch_list[-1])
                 # 没看懂什么意思
                 if net_list[-1] in non_signal_net_list:
                     topology_list[-1].append(net_list[-1])
-            print('topology_list', topology_list)
-            print('first_net_list', net_list)
-            print('first_next_pin_list', next_pin_list)
-            print('first_sch_list', sch_list)
+
+            # print('topology_list', topology_list)
+            # print('first_net_list', net_list)
+            # print('first_next_pin_list', next_pin_list)
+            # print('first_sch_list', sch_list)
             # # print()
             net_list_start = net_list
             end = True
@@ -2168,185 +2284,173 @@ def topology_extract2(start_net_name, start_sch_name):
                         #     # print(j,next_pin_list[ij1])
                         #     # print(j,sch_list[ij1])
 
-                        # try:
-                        # 找出下一条线的段id
-                        print('')
-                        print('net_list', net_list)
-                        print('sch_list', sch_list)
-                        print('next_pin_list_start', next_pin_list)
-                        print('previous_pin_list1', previous_pin_list1)
-                        print('previous_pin_list2', previous_pin_list2)
-                        print('before', net_list[ij1], sch_list[ij1], next_pin_list[ij1])
-                        topology_seg_ind = topology_extract1(net_list[ij1], sch_list[ij1],
-                                                             start_sch_pin=next_pin_list[ij1])
-                        # previous_sch_pin1=previous_sch_pin_list1[ij1],
-                        # previous_sch_pin2=previous_sch_pin_list2[ij1])
-                        print('topology_extract11', topology_seg_ind)
-                        # # print('topology_extract11')
-                        # else:
-                        #     topology_seg_ind = topology_extract1(net_list[ij1], sch_list[ij1],
-                        #                                          start_sch_pin=next_pin_list[ij1],
-                        #                                          previous_sch_pin=None)
-                        #     # print('topology_extract12')
-                        # # print('topology_seg_ind', topology_seg_ind)
-                        # if start_net_name == 'USB3_P1_TX1P':
-                        #     # print(topology_seg_ind)
-                        for ind in xrange(len(topology_seg_ind)):
-                            # # print(i, ind, topology_seg_ind[ind])
-                            # 找出与芯片相接的线
-                            if etch_line.GetConnectedSCHListBySegInd(topology_seg_ind[ind][-1]) is not None:
-                                # previous_sch_pin_temp1.append(
-                                #     etch_line.GetConnComp(topology_seg_ind[ind][-1]))
-                                # previous_sch_pin_temp2.append(
-                                #     etch_line.GetConnComp(topology_seg_ind[ind][-2]))
-                                # 存入线的两端坐标值
-                                if topology_seg_ind[ind][-1][1] == 1:
-                                    net_xy_point = etch_line.GetXY1(topology_seg_ind[ind][-1][0])
-                                elif topology_seg_ind[ind][-1][1] == 2:
-                                    net_xy_point = etch_line.GetXY2(topology_seg_ind[ind][-1][0])
-                                sch_pin_xy_point_list = list()
-                                # if start_net_name == 'PCH_HSOP3':
-                                #     # print(net_xy_point)
-                                for (sch, pin) in etch_line.GetConnectedSCHListBySegInd(topology_seg_ind[ind][-1]):
-                                    sch_object = get_SCH_object_by_name(sch)
-                                    sch_pin_xy_point_list.append(
-                                        (sch_object.GetXPoint(pin), sch_object.GetYPoint(pin)))
-                                # if start_net_name == 'PCH_HSOP3':
-                                #     # print(sch_pin_xy_point_list)
-                                d_xy_list = []
-                                for x in sch_pin_xy_point_list:
-                                    d_xy_list.append(two_point_distance(net_xy_point, x))
+                        try:
+                            # 找出下一条线的段id
+                            # # print('net_list', net_list)
+                            # # print('sch_list', sch_list)
+                            # # print('next_pin_list_start', next_pin_list)
+                            # # print('previous_pin_list1', previous_pin_list1)
+                            # # print('previous_pin_list2', previous_pin_list2)
+                            # # print('before', net_list[ij1], sch_list[ij1], next_pin_list[ij1])
+                            # if previous_pin_list:
+                            topology_seg_ind = topology_extract1(net_list[ij1], sch_list[ij1],
+                                                                    start_sch_pin=next_pin_list[ij1])
+                                                                    # previous_sch_pin1=previous_sch_pin_list1[ij1],
+                                                                    # previous_sch_pin2=previous_sch_pin_list2[ij1])
+                            # print('topology_extract11', topology_seg_ind)
+                            # # print('topology_extract11')
+                            # else:
+                            #     topology_seg_ind = topology_extract1(net_list[ij1], sch_list[ij1],
+                            #                                          start_sch_pin=next_pin_list[ij1],
+                            #                                          previous_sch_pin=None)
+                            #     # print('topology_extract12')
+                            # # print('topology_seg_ind', topology_seg_ind)
+                            # if start_net_name == 'USB3_P1_TX1P':
+                            #     # print(topology_seg_ind)
+                            for ind in xrange(len(topology_seg_ind)):
+                                # # print(i, ind, topology_seg_ind[ind])
+                                # 找出与芯片相接的线
+                                if etch_line.GetConnectedSCHListBySegInd(topology_seg_ind[ind][-1]) is not None:
+                                    previous_sch_pin_temp1.append(
+                                        etch_line.GetConnComp(topology_seg_ind[ind][-1]))
+                                    previous_sch_pin_temp2.append(
+                                        etch_line.GetConnComp(topology_seg_ind[ind][-2]))
+                                    # 存入线的两端坐标值
+                                    if topology_seg_ind[ind][-1][1] == 1:
+                                        net_xy_point = etch_line.GetXY1(topology_seg_ind[ind][-1][0])
+                                    elif topology_seg_ind[ind][-1][1] == 2:
+                                        net_xy_point = etch_line.GetXY2(topology_seg_ind[ind][-1][0])
+                                    sch_pin_xy_point_list = list()
+                                    # if start_net_name == 'PCH_HSOP3':
+                                    #     # print(net_xy_point)
+                                    for (sch, pin) in etch_line.GetConnectedSCHListBySegInd(topology_seg_ind[ind][-1]):
+                                        sch_object = get_SCH_object_by_name(sch)
+                                        sch_pin_xy_point_list.append(
+                                            (sch_object.GetXPoint(pin), sch_object.GetYPoint(pin)))
+                                    # if start_net_name == 'PCH_HSOP3':
+                                    #     # print(sch_pin_xy_point_list)
+                                    d_xy_list = []
+                                    for x in sch_pin_xy_point_list:
+                                        d_xy_list.append(two_point_distance(net_xy_point, x))
 
-                                sch_list_temp.append(
-                                    etch_line.GetConnectedSCHListBySegInd(topology_seg_ind[ind][-1])
-                                    [d_xy_list.index(max(d_xy_list))][0])
-                                # sch_previous_list.append(
-                                #     etch_line.GetConnectedSCHListBySegInd(topology_seg_ind[ind][-1])[-2][0])
-                                pin_list_temp.append(
-                                    etch_line.GetConnectedSCHListBySegInd(topology_seg_ind[ind][-1])
-                                    [d_xy_list.index(max(d_xy_list))][1])
-                                # pin_previous_list.append(
-                                #     etch_line.GetConnectedSCHListBySegInd(topology_seg_ind[ind][-1])[-2][1])
+                                    sch_list_temp.append(
+                                        etch_line.GetConnectedSCHListBySegInd(topology_seg_ind[ind][-1])
+                                        [d_xy_list.index(max(d_xy_list))][0])
+                                    # sch_previous_list.append(
+                                    #     etch_line.GetConnectedSCHListBySegInd(topology_seg_ind[ind][-1])[-2][0])
+                                    pin_list_temp.append(
+                                        etch_line.GetConnectedSCHListBySegInd(topology_seg_ind[ind][-1])
+                                        [d_xy_list.index(max(d_xy_list))][1])
+                                    # pin_previous_list.append(
+                                    #     etch_line.GetConnectedSCHListBySegInd(topology_seg_ind[ind][-1])[-2][1])
 
-                                # if start_net_name == 'PCH_HSOP3':
-                                #     # print(sch_list_temp)
-                                #     # print(pin_list_temp)
-                            else:
-                                sch_list_temp.append(None)
-                                pin_list_temp.append(None)
-                                previous_sch_pin_temp1.append(None)
-                                previous_sch_pin_temp2.append(None)
-                            # print('net_list[ij1]', net_list[ij1])
-                            # print('topology_seg_ind[ind]', topology_seg_ind[ind])
-                            # format_item_list = topology_format(net_list[ij1], topology_seg_ind[ind])
-                            # print('format_item_list', format_item_list)
-                            # format_flag = False
-                            # # if len(format_item_list) > 1:
-                            # #     for xxx in range(len(format_item_list) - 1):
-                            # #         format_flag = True
-                            # #         sch_list_temp.append(sch_list_temp[-1])
-                            # #         pin_list_temp.append(pin_list_temp[-1])
-                            # #         previous_sch_pin_temp1.append(previous_sch_pin_temp1[-1])
-                            # #         previous_sch_pin_temp2.append(previous_sch_pin_temp2[-1])
-                            # # # print('sch_list_temp', sch_list_temp)
-                            # # # print('pin_list_temp', pin_list_temp)
-                            # # try:
-                            # #     previous_sch_pin_list = topology_list[i][-2].split('[')[-1].strip(']').split('-')
-                            # # except:
-                            # #     previous_sch_pin_list = []
-                            # # # print('error', topology_list[i][::-1])
-                            # previous_net = format_item_list[0][0]
-                            # for items in topology_list[i][::-1]:
-                            #     # # print('type', type(items))
-                            #     if type(items) not in [type(2.0), type(2)] and items.find(':') == -1:
-                            #         previous_net = items
-                            #         break
-                            # # print('format_item_list', format_item_list)
-                            # # print('previous_net', previous_net)
-                            next_net, next_pin = net_mapping(sch_list_temp[-1], pin_list_temp[-1])  # ,
-                            # previous_net=previous_net)
-                            print('next_net', next_net)
-                            print('next_pin', next_pin)
-
-                            ########################################################
-                            # 自己修改的代码
-                            start_flag = 1
-                            for idxx_ in xrange(len(next_net)):
-                                for start_ind in xrange(len(net_list_start)):
-                                    if next_net[idxx_] == net_list_start[start_ind]:
-                                        # and next_pin[idxx_] == next_pin_list_start[start_ind]\
-                                        # and sch_list_temp[idxx_] == sch_list_start[start_ind]:
-                                        start_flag = 0
-                                    if start_ind == len(net_list_start) - 1 and start_flag:
-                                        print('ok')
-                                        net_list_temp.append(next_net[idxx_])
-                                        next_pin_list_temp.append(next_pin[idxx_])
-                                        # if format_flag:
-                                        #     net_list_temp.append(next_net[idxx_])
-                                        #     next_pin_list_temp.append(next_pin[idxx_])
+                                    # if start_net_name == 'PCH_HSOP3':
+                                    #     # print(sch_list_temp)
+                                    #     # print(pin_list_temp)
+                                else:
+                                    sch_list_temp.append(None)
+                                    pin_list_temp.append(None)
+                                    previous_sch_pin_temp1.append(None)
+                                    previous_sch_pin_temp2.append(None)
+                                # print('net_list[ij1]', net_list[ij1])
+                                # print('topology_seg_ind[ind]', topology_seg_ind[ind])
+                                format_item_list = topology_format(net_list[ij1], topology_seg_ind[ind])
+                                # print('format_item_list', format_item_list)
+                                format_flag = False
+                                if len(format_item_list) > 1:
+                                    format_flag = True
+                                    sch_list_temp.append(sch_list_temp[-1])
+                                    pin_list_temp.append(pin_list_temp[-1])
+                                    previous_sch_pin_temp1.append(previous_sch_pin_temp1[-1])
+                                    previous_sch_pin_temp2.append(previous_sch_pin_temp2[-1])
+                                # # print('sch_list_temp', sch_list_temp)
+                                # # print('pin_list_temp', pin_list_temp)
+                                # try:
+                                #     previous_sch_pin_list = topology_list[i][-2].split('[')[-1].strip(']').split('-')
+                                # except:
+                                #     previous_sch_pin_list = []
+                                # # print('error', topology_list[i][::-1])
+                                previous_net = format_item_list[0][0]
+                                # for items in topology_list[i][::-1]:
+                                #     # # print('type', type(items))
+                                #     if type(items) not in [type(2.0), type(2)] and items.find(':') == -1:
+                                #         previous_net = items
+                                #         break
+                                # # print('format_item_list', format_item_list)
+                                # # print('previous_net', previous_net)
+                                next_net, next_pin = net_mapping(sch_list_temp[-1], pin_list_temp[-1],
+                                                                    previous_net=previous_net)
+                                # print('next_net', next_net)
+                                # print('next_pin', next_pin)
 
                                 ########################################################
+                                # 自己修改的代码
+                                start_flag = 1
+                                for idxx_ in xrange(len(next_net)):
+                                    for start_ind in xrange(len(net_list_start)):
+                                        if next_net[idxx_] == net_list_start[start_ind]:
+                                            # and next_pin[idxx_] == next_pin_list_start[start_ind]\
+                                            # and sch_list_temp[idxx_] == sch_list_start[start_ind]:
+                                            start_flag = 0
+                                        if start_ind == len(net_list_start) - 1 and start_flag:
+                                            net_list_temp.append(next_net[idxx_])
+                                            next_pin_list_temp.append(next_pin[idxx_])
+                                            if format_flag:
+                                                net_list_temp.append(next_net[idxx_])
+                                                next_pin_list_temp.append(next_pin[idxx_])
 
-                                if idxx_ > 0:
-                                    sch_list_temp.append(sch_list_temp[-1])
-                                # # print(222, topology_list[i])
-                                # # print(333, topology_format(net_list[ij1], topology_seg_ind[ind]))
-                                # format_item_list = []
-                                # # print('format_item_before_list', format_item_before_list)
-                                # for x in format_item_before_list:
-                                #     if previous_net in x:
-                                #         format_item_list.append(x[1:])
-                                #     else:
-                                #         format_item_list.append(x)
-                                # # print('format_item_list', format_item_list)
-                                # # print('topology_list', topology_list)
-                                # if format_item_list:
-                                #     if len(format_item_list) > 1:
-                                #         for format_item in format_item_list:
-                                #             # if next_net[0] is None:
-                                #             #     topology_list_temp.append(
-                                #             #         topology_list[i] + format_item[1:])
-                                #             #     topology_out_list.append(
-                                #             #         topology_list[i] + format_item[1:])
-                                #             # # print('topology_out_list1', topology_list[i] + format_item[1:])
-                                #             # else:
-                                #             topology_list_temp.append(
-                                #                 topology_list[i] + format_item)
-                                #             topology_out_list.append(
-                                #                 topology_list[i] + format_item)
-                                #             print('topology_out_list1', topology_list[i] + format_item)
-                                #     else:
-                                #         # if next_net[0] is None:
-                                #         #     topology_list_temp.append(
-                                #         #         topology_list[i] + format_item_list[0][1:])
-                                #         #     topology_out_list.append(
-                                #         #         topology_list[i] + format_item_list[0][1:])
-                                #         #     # print('topology_out_list2', topology_list[i] + format_item_list[0][1:])
-                                #         # else:
-                                #         topology_list_temp.append(
-                                #             topology_list[i] + format_item_list[0])
-                                #         topology_out_list.append(
-                                #             topology_list[i] + format_item_list[0])
-                                #         print('topology_out_list2', topology_list[i] + format_item_list[0])
-                                if idxx_ > 0:
-                                    sch_list_temp.append(sch_list_temp[-1])
-                                # print(222, topology_list[i])
-                                # print(333, topology_format(net_list[ij1], topology_seg_ind[ind]))
-                                topology_list_temp.append(
-                                    topology_list[i] + topology_format(net_list[ij1], topology_seg_ind[ind]))
-                                topology_out_list.append(topology_list[i])
-                                topology_out_list.append(
-                                    topology_list[i] + topology_format(net_list[ij1], topology_seg_ind[ind]))
-                                print('topology_out_list', topology_out_list)
-                        # except:
-                        #     topology_list_temp.append(topology_list[i] + ['Exception;%s' % net_list[ij1]])
-                        #     topology_out_list.append(topology_list[i] + ['Exception;%s' % net_list[ij1]])
-                        #     sch_list_temp.append(None)
-                        #     pin_list_temp.append(None)
-                        #     previous_sch_pin_temp1.append(None)
-                        #     previous_sch_pin_temp2.append(None)
-                        #     net_list_temp.append(None)
-                        #     next_pin_list_temp.append(None)
+                                    ########################################################
+
+                                    if idxx_ > 0:
+                                        sch_list_temp.append(sch_list_temp[-1])
+                                    # # print(222, topology_list[i])
+                                    # # print(333, topology_format(net_list[ij1], topology_seg_ind[ind]))
+                                    # format_item_list = []
+                                    # # print('format_item_before_list', format_item_before_list)
+                                    # for x in format_item_before_list:
+                                    #     if previous_net in x:
+                                    #         format_item_list.append(x[1:])
+                                    #     else:
+                                    #         format_item_list.append(x)
+                                    # # print('format_item_list', format_item_list)
+                                    # # print('topology_list', topology_list)
+                                    if format_item_list:
+                                        if len(format_item_list) > 1:
+                                            for format_item in format_item_list:
+                                                # if next_net[0] is None:
+                                                #     topology_list_temp.append(
+                                                #         topology_list[i] + format_item[1:])
+                                                #     topology_out_list.append(
+                                                #         topology_list[i] + format_item[1:])
+                                                # # print('topology_out_list1', topology_list[i] + format_item[1:])
+                                                # else:
+                                                topology_list_temp.append(
+                                                    topology_list[i] + format_item)
+                                                topology_out_list.append(
+                                                    topology_list[i] + format_item)
+                                                # print('topology_out_list1', topology_list[i] + format_item)
+                                        else:
+                                            # if next_net[0] is None:
+                                            #     topology_list_temp.append(
+                                            #         topology_list[i] + format_item_list[0][1:])
+                                            #     topology_out_list.append(
+                                            #         topology_list[i] + format_item_list[0][1:])
+                                            #     # print('topology_out_list2', topology_list[i] + format_item_list[0][1:])
+                                            # else:
+                                            topology_list_temp.append(
+                                                topology_list[i] + format_item_list[0])
+                                            topology_out_list.append(
+                                                topology_list[i] + format_item_list[0])
+                                            # print('topology_out_list2', topology_list[i] + format_item_list[0])
+                        except:
+                            topology_list_temp.append(topology_list[i] + ['Exception;%s' % net_list[ij1]])
+                            topology_out_list.append(topology_list[i] + ['Exception;%s' % net_list[ij1]])
+                            sch_list_temp.append(None)
+                            pin_list_temp.append(None)
+                            previous_sch_pin_temp1.append(None)
+                            previous_sch_pin_temp2.append(None)
+                            net_list_temp.append(None)
+                            next_pin_list_temp.append(None)
 
                     elif net_list[ij1] in non_signal_net_list and j != 0:
                         topology_list_temp.append(topology_list[i] + [net_list[ij1]])
@@ -2374,20 +2478,40 @@ def topology_extract2(start_net_name, start_sch_name):
                     #     # print(topology_list)
                 # # print(2, topology_list_temp)
                 topology_list = list(topology_list_temp)
-                print('topology_list_final', topology_list)
+                # # print('topology_list_final', topology_list)
                 # if start_net_name == 'DPC_AUX_DP_C':
                 #     # print(topology_list)
 
                 net_list = list(net_list_temp)
-                print('last_net_list', net_list)
-                print('pre_net_list', pre_net_list)
+                # # print('last_net_list', net_list)
+                # # print('pre_net_list', pre_net_list)
 
                 next_pin_list = list(next_pin_list_temp)
-                print('last_next_pin_list', next_pin_list)
-                print('')
+                # # print('last_next_pin_list', next_pin_list)
+
+                # previous_sch_pin_list1 = list(previous_sch_pin_temp1)
+                # # print('last_previous_sch_pin_list1', previous_sch_pin_list1)
+                #
+                # previous_sch_pin_list2 = list(previous_sch_pin_temp2)
+                # # print('last_previous_sch_pin_list2', previous_sch_pin_list2)
+                #
+                # for i in previous_sch_pin_list1:
+                #     item = i if i is None else i[-1]
+                #     previous_pin_list1.append(item)
+                # # print('last_previous_pin_list1', previous_pin_list1)
+                #
+                # for i in previous_sch_pin_list2:
+                #     item = i if i is None else i[-1]
+                #     previous_pin_list2.append(item)
+                # # print('last_previous_pin_list2', previous_pin_list2)
 
                 sch_list = list(sch_list_temp)
-                print('last sch list', sch_list)
+                # # print('last_sch_list', sch_list)
+                # if start_net_name == 'USB2_N14':
+                #     # print(1111, net_list)
+                #     # print(2222, pre_net_list)
+                #     # print(333, sch_list)
+                #     # print(j)
 
                 for net in net_list:
                     if net in pre_net_list:
@@ -2423,7 +2547,7 @@ def topology_extract2(start_net_name, start_sch_name):
                     topology_return_list += topology_list
                 else:
                     topology_return_list = topology_list
-            # print('in', topology_return_list)
+            # # print('in', topology_return_list)
     # if topology_return_list:
     #     # print('topology_return_list', topology_return_list)
     #     # print('')
@@ -2434,7 +2558,6 @@ def topology_extract2(start_net_name, start_sch_name):
     #         if x not in topology_output_list:
     #             topology_output_list.apppend(x)
     # print(topology_output_list)
-    print('topology_return_list', topology_return_list)
     return topology_return_list
     # else:
     #     # print('topology_list', topology_list)
@@ -3449,36 +3572,34 @@ def RunSignalTopology():
             check_net_list = get_connected_net_list_by_SCH_name(check_sch_name)
             check_net_list = [x for x in check_net_list if x in total_check_net_list]
             for check_net_name in check_net_list:
-                # try:
-                # 遍历每个器件连接的所有线名
-                # check_sch_name是符合最小pin脚个数的芯片，check_net_name是与芯片相接的信号线列表的遍历
-                # if check_net_name == 'P3E_CPU0_PE2_TXP0':
-                # if check_net_name == 'USB3_DTX_P1':USB1_USB30_TX_N
-                if check_net_name == 'USB3_DTX_P1':
+                try:
+                    # 遍历每个器件连接的所有线名
+                    # check_sch_name是符合最小pin脚个数的芯片，check_net_name是与芯片相接的信号线列表的遍历
+                    # if check_net_name == 'SPI_CLK_PCH_R':
                     topology_list = topology_extract2(check_net_name, check_sch_name)
                     topology_output_list = []
                     for x in topology_list:
                         if x not in topology_output_list:
                             topology_output_list.append(x)
-                    # print(topology_output_list)
+                            # print(topology_output_list)
                     # print('topology_list', topology_list)
                     topology_1_list = topology_list_format_simplified(topology_output_list)
                     # print('topology_1_list', topology_1_list)
                     topology_dict[(check_sch_name, check_net_name, 'all')] = topology_1_list
-                if check_sch_ok_net_dict.get(check_sch_name) == None:
-                    check_sch_ok_net_dict[check_sch_name] = [check_net_name]
-                else:
-                    check_sch_ok_net_dict[check_sch_name] += [check_net_name]
-                ok_check_net_list.append(check_net_name)
-                ok_count += 1
-                setting_sheet.range(progress_ind).value = 'Extracting...%d/%d' % (ok_count, total_net_number)
-            # except:  # Exception as e:
-                #     # # print(e)
-                #     if check_sch_fail_net_dict.get(check_sch_name) == None:
-                #         check_sch_fail_net_dict[check_sch_name] = [check_net_name]
-                #     else:
-                #         check_sch_fail_net_dict[check_sch_name] += [check_net_name]
-                #     fail_check_net_list.append(check_net_name)
+                    if check_sch_ok_net_dict.get(check_sch_name) == None:
+                        check_sch_ok_net_dict[check_sch_name] = [check_net_name]
+                    else:
+                        check_sch_ok_net_dict[check_sch_name] += [check_net_name]
+                    ok_check_net_list.append(check_net_name)
+                    ok_count += 1
+                    setting_sheet.range(progress_ind).value = 'Extracting...%d/%d' % (ok_count, total_net_number)
+                except:  # Exception as e:
+                    # # print(e)
+                    if check_sch_fail_net_dict.get(check_sch_name) == None:
+                        check_sch_fail_net_dict[check_sch_name] = [check_net_name]
+                    else:
+                        check_sch_fail_net_dict[check_sch_name] += [check_net_name]
+                    fail_check_net_list.append(check_net_name)
         # # print(check_sch_ok_net_dict)
         # # print(topology_dict)
         # # print(topology_value_list)
@@ -7678,11 +7799,12 @@ def count_dimm_length():
 # Command line argument Definition
 if __name__ == '__main__':
 
-    # for i in sys.argv:
-    #     if i.find('.xlsm') > -1:
-    #         xlsm_path = r'%s' % i
-    #         break
-    xlsm_path = r'C:\Users\Tommy\Desktop\GitHub\Layout_Checklist_Tool\D10_Tahaa CML_B00_SIM_Checklist_A2.2_20190624.xlsm'
+    for i in sys.argv:
+        if i.find('.xlsm') > -1:
+            xlsm_path = r'%s' % i
+            break
+    # xlsm_path = r'C:\Users\Tommy\Desktop\GitHub\Layout_Checklist_Tool\
+    # D10_Tahaa CML_B00_SIM_Checklist_A2.2_20190624.xlsm'
     # xlsm_path = r'C:\Users\Tommy\Desktop\Checklist_case\VINSON_SI_SIM_Checklist_A1.1_20180601.xlsm'
     # xlsm_path = r'C:\Users\Tommy\Desktop\Checklist_case\PRECISION-MICRO-B00_SIM_Checklist-A1.5_20180530.xlsm'
     Book(xlsm_path).set_mock_caller()
@@ -7780,9 +7902,8 @@ if __name__ == '__main__':
             break
 
 # CheckTopology()
-# LoadStartEndComponent()
 # LoadTopologyFormat_GUI()
-RunSignalTopology()
+# RunSignalTopology()
 # load_calc_grade_gui()
 # complete_table_length_item()
 # load_calc_grade_gui()
