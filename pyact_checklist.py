@@ -204,6 +204,7 @@
 # 修改了topology_format中的表达方式，将三个芯片依次作为终点显示 ——Gorgeous
 # 2019.07.09 更新Summary表单，删除重复的错误显示 --kiki
 # 2019.07.15 批量更新Topology --kiki
+# 2019.08.06 添加代码 net_list_temp.append(None) next_pin_list_temp.append(None) ——Daniel
 
 
 from xlwings import Book
@@ -2257,14 +2258,14 @@ def topology_extract2(start_net_name, start_sch_name):
 
             pre_net_list = []
             topology_out_list = []
+            topology_out_list.append(topology_list[0])   #f7684584 20190807
 
             # Topology Detect for secondary part (net change)
             while end is False:
                 # if start_net_name == 'SUSCLK_M2230' and start_sch_name == 'J38':
                 #     # print(j, end)
                 j += 1
-                topology_list_temp, net_list_temp, sch_list_temp, pin_list_temp, next_pin_list_temp =\
-                    [], [], [], [], []
+                topology_list_temp, net_list_temp, sch_list_temp, pin_list_temp, next_pin_list_temp = [], [], [], [], []
                 previous_sch_pin_temp1, previous_sch_pin_temp2 = [], []
 
                 i = -1
@@ -2378,21 +2379,23 @@ def topology_extract2(start_net_name, start_sch_name):
                                 #     if type(items) not in [type(2.0), type(2)] and items.find(':') == -1:
                                 #         previous_net = items
                                 #         break
-                                # # print('format_item_list', format_item_list)
-                                # # print('previous_net', previous_net)
+                                print('format_item_list', format_item_list)
+                                print('previous_net', previous_net)
                                 next_net, next_pin = net_mapping(sch_list_temp[-1], pin_list_temp[-1],
                                                                     previous_net=previous_net)
-                                # print('next_net', next_net)
-                                # print('next_pin', next_pin)
+                                print('next_net', next_net)
+                                print('next_pin', next_pin)
 
                                 ########################################################
                                 # 自己修改的代码
                                 start_flag = 1
                                 for idxx_ in xrange(len(next_net)):
                                     for start_ind in xrange(len(net_list_start)):
-                                        if next_net[idxx_] == net_list_start[start_ind]:
+                                        if next_net[idxx_] == net_list_start[start_ind] or next_net[idxx_] == start_net_name:  #-F7684584
                                             # and next_pin[idxx_] == next_pin_list_start[start_ind]\
                                             # and sch_list_temp[idxx_] == sch_list_start[start_ind]:
+                                            net_list_temp.append(None)
+                                            next_pin_list_temp.append(None)
                                             start_flag = 0
                                         if start_ind == len(net_list_start) - 1 and start_flag:
                                             net_list_temp.append(next_net[idxx_])
@@ -2480,6 +2483,7 @@ def topology_extract2(start_net_name, start_sch_name):
                     #     # print(topology_list)
                 # # print(2, topology_list_temp)
                 topology_list = list(topology_list_temp)
+
                 # # print('topology_list_final', topology_list)
                 # if start_net_name == 'DPC_AUX_DP_C':
                 #     # print(topology_list)
@@ -2529,7 +2533,6 @@ def topology_extract2(start_net_name, start_sch_name):
                     raise ValueError("!!!!!!!Can't Extract %s-%s!!!!!!!" % (start_sch_name, start_net_name))
 
             topology_return_half_list = []
-
             # if start_net_name == 'PCH_HSON2' and start_sch_name == 'JN44':
             #     # print('ok')
             # # print(sch_list[ind])
@@ -3576,9 +3579,11 @@ def RunSignalTopology():
         setting_sheet.range(progress_ind).value = 'Extracting...0/%d' % total_net_number
 
         # start_sch_name_list是从setting表中得出的数据，pin脚个数符合的芯片的名称
+        # start_sch_name_list = ['U4']
         for check_sch_name in start_sch_name_list:
             check_net_list = get_connected_net_list_by_SCH_name(check_sch_name)
             check_net_list = [x for x in check_net_list if x in total_check_net_list]
+            # check_net_list = ['PCH_RTCX2']
             for check_net_name in check_net_list:
                 try:
                     # 遍历每个器件连接的所有线名
@@ -9269,7 +9274,7 @@ if __name__ == '__main__':
             break
     # xlsm_path = r'C:\Users\Tommy\Desktop\Software_project\bug\Tobacco_6Layers_SIM_Checklist_A1.1_20190722_OK.xlsm'
     # xlsm_path = r'C:\Users\Tommy\Desktop\Checklist_case\VINSON_SI_SIM_Checklist_A1.1_20180601.xlsm'
-    # xlsm_path = r'C:\Users\Tommy\Desktop\Checklist_case\PRECISION-MICRO-B00_SIM_Checklist-A1.5_20180530.xlsm'
+    xlsm_path = r'F:\brd_checklist_debug_20190806\Z2_Penghu-ED_CML_WS_4Layer_SIM_Checklist_A1.1_20190715.xlsm'
     Book(xlsm_path).set_mock_caller()
 
     getpinnumio()
