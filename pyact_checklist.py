@@ -2145,11 +2145,6 @@ def net_mapping(sch_name, input_pin, previous_net=None):
         return [None], [None]
 
 
-# def format_list(format_items):
-#     for i in range(len(format_items)):
-#         if ']:[' in format_items[i]:
-
-
 # 返回每个信号线的经过芯片，叠层，pin脚名，线长
 def topology_extract2(start_net_name, start_sch_name):
     # Topology Extraction Function 2
@@ -2379,12 +2374,12 @@ def topology_extract2(start_net_name, start_sch_name):
                                 #     if type(items) not in [type(2.0), type(2)] and items.find(':') == -1:
                                 #         previous_net = items
                                 #         break
-                                print('format_item_list', format_item_list)
-                                print('previous_net', previous_net)
+                                # print('format_item_list', format_item_list)
+                                # print('previous_net', previous_net)
                                 next_net, next_pin = net_mapping(sch_list_temp[-1], pin_list_temp[-1],
                                                                     previous_net=previous_net)
-                                print('next_net', next_net)
-                                print('next_pin', next_pin)
+                                # print('next_net', next_net)
+                                # print('next_pin', next_pin)
 
                                 ########################################################
                                 # 自己修改的代码
@@ -3583,7 +3578,7 @@ def RunSignalTopology():
         for check_sch_name in start_sch_name_list:
             check_net_list = get_connected_net_list_by_SCH_name(check_sch_name)
             check_net_list = [x for x in check_net_list if x in total_check_net_list]
-            # check_net_list = ['PCH_RTCX2']
+            # check_net_list = ['SLP_S0_PTL_N']
             for check_net_name in check_net_list:
                 try:
                     # 遍历每个器件连接的所有线名
@@ -3591,14 +3586,22 @@ def RunSignalTopology():
                     # if check_net_name == 'SPI_CLK_PCH_R':
                     topology_list = topology_extract2(check_net_name, check_sch_name)
                     topology_output_list = []
+                    # print('topology_list', topology_list)
                     for x in topology_list:
                         if x not in topology_output_list:
                             topology_output_list.append(x)
-                            # print(topology_output_list)
+                    # print('')
+                    # print('topology_output_list', topology_output_list)
                     # print('topology_list', topology_list)
                     topology_1_list = topology_list_format_simplified(topology_output_list)
+                    topology_1_output_list = []
+                    # print('topology_list', topology_list)
+                    for x in topology_1_list:
+                        if x not in topology_1_output_list:
+                            topology_1_output_list.append(x)
                     # print('topology_1_list', topology_1_list)
-                    topology_dict[(check_sch_name, check_net_name, 'all')] = topology_1_list
+                    # print('')
+                    topology_dict[(check_sch_name, check_net_name, 'all')] = topology_1_output_list
                     if check_sch_ok_net_dict.get(check_sch_name) == None:
                         check_sch_ok_net_dict[check_sch_name] = [check_net_name]
                     else:
@@ -3677,7 +3680,7 @@ def RunSignalTopology():
         row_count = 2
 
         all_result_list = []
-        # # print(topology_dict)
+        # print(topology_dict)
         for content in topology_dict.values():
             for line in content:
                 # if line[0] == 'CPU-C21':
@@ -9268,13 +9271,13 @@ def count_dimm_length():
 # Command line argument Definition
 if __name__ == '__main__':
 
-    for i in sys.argv:
-        if i.find('.xlsm') > -1:
-            xlsm_path = r'%s' % i
-            break
-    # xlsm_path = r'C:\Users\Tommy\Desktop\Software_project\bug\Tobacco_6Layers_SIM_Checklist_A1.1_20190722_OK.xlsm'
+    # for i in sys.argv:
+    #     if i.find('.xlsm') > -1:
+    #         xlsm_path = r'%s' % i
+    #         break
+    xlsm_path = r'C:\Users\Tommy\Desktop\Software_project\bug\20190828\D10_SFF3_SIM_Checklist_A1.9_report.xlsm'
     # xlsm_path = r'C:\Users\Tommy\Desktop\Checklist_case\VINSON_SI_SIM_Checklist_A1.1_20180601.xlsm'
-    xlsm_path = r'F:\brd_checklist_debug_20190806\Z2_Penghu-ED_CML_WS_4Layer_SIM_Checklist_A1.1_20190715.xlsm'
+    # xlsm_path = r'F:\brd_checklist_debug_20190806\Z2_Penghu-ED_CML_WS_4Layer_SIM_Checklist_A1.1_20190715.xlsm'
     Book(xlsm_path).set_mock_caller()
 
     getpinnumio()
