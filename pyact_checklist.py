@@ -205,8 +205,21 @@
 # 2019.07.09 更新Summary表单，删除重复的错误显示 --kiki
 # 2019.07.15 批量更新Topology --kiki
 # 2019.08.06 添加代码 net_list_temp.append(None) next_pin_list_temp.append(None) ——Daniel
+# 2019.08.10 添代码  topology_out_list.append(topology_list[0])， or next_net[idxx_] == start_net_name，debug ACT Topology 缺少短分支的问题 -- Daniel
+# 2019.08.26 添加topology数据中cross分叉点标示，update check topology中check cross over功能 --Daniel
+# 2019.09.11 更改了两元器件三元器件共Pin的数据出问题的bug ——Gorgeous
+# 2019.09.12 update批量更新功能 ——Kiki
 
 
+from xlwings import Book
+import xlwings as xw
+import re, sys, os, time, datetime, copy
+from PySide import QtGui, QtCore
+import time
+# from Crypto.Cipher import AES
+from binascii import b2a_hex, a2b_hex
+from Tkinter import _flatten
+import sys
 from xlwings import Book
 import xlwings as xw
 import re, sys, os, time, datetime, copy
@@ -349,7 +362,7 @@ class etch_line:
             # if SCH_name == 'R737':
             #     for idx in xrange(len(pin_seg_info)):
             #         seg_ind = pin_seg_info[idx][1]
-                    # # print('R737', seg_ind, seg_ind_input)
+            # # print('R737', seg_ind, seg_ind_input)
             # # print('get', (SCH_name, pin_id), pin_seg_info)
             # # print('seg_ind_input', seg_ind_input)
             count += 1
@@ -1141,7 +1154,8 @@ def LoadDDRTable():
 def power_trace():
     global Net_brd_data, non_signal_net_list
     allegro_report_path, layer_type_dict, start_sch_name_list, progress_ind, All_Layer_List = GetSetting()
-    SCH_brd_data, Net_brd_data, diff_pair_brd_data, stackup_brd_data, npr_brd_data = read_allegro_data(allegro_report_path)
+    SCH_brd_data, Net_brd_data, diff_pair_brd_data, stackup_brd_data, npr_brd_data = read_allegro_data(
+        allegro_report_path)
     _, _, _, non_signal_net_list = GetNetList()
     # Net_brd_data = read_allegro_data(allegro_report_path)
     wb = Book(xlsm_path).caller()
@@ -1312,7 +1326,8 @@ def read_allegro_data(allegro_data_path):
                 'Subclass Name,Type,Material,Thickness (MIL),Conductivity (mho/cm),Dielectric Constant,Loss Tangent,Negative Artwork,Shield,Width (MIL),Single Impedance (ohm),Unused Pin Pad Suppression,Unused Via Pad Suppression') > -1:
             Stackup_content = [','.join(x[0:9] + x[10::]) for x in map(lambda y: y.upper().split(','), item[5:-1])]
             stackup_brd_data = brd_data(Stackup_content)
-        elif item[3].find('NET_NAME,NET_BUS_NAME,NET_SPACING_TYPE,NET_PHYSICAL_TYPE,NET_ELECTRICAL_CONSTRAINT_SET,NET_ECL,NET_DRIVER_TERM_VAL,NET_LOAD_TERM_VAL,NET_FIXED,NET_RATSNEST_SCHEDULE,NET_NO_RAT,NET_NO_GLOSS,NET_NO_PIN_ESCAPE,NET_NO_RIPUP,NET_NO_ROUTE,NET_NO_TEST,NET_PROBE_NUMBER,NET_ROUTE_PRIORITY,NET_ROUTE_TO_SHAPE,NET_SAME_NET,NET_MIN_BVIA_GAP,NET_MIN_BVIA_STAGGER,NET_MAX_BVIA_STAGGER,NET_MIN_LINE_WIDTH,NET_MIN_NECK_WIDTH,NET_DIFFERENTIAL_PAIR,NET_DIFFP_COUPLED_MINUS,NET_DIFFP_COUPLED_PLUS,NET_DIFFP_GATHER_CONTROL,NET_DIFFP_MIN_SPACE,NET_DIFFP_NECK_GAP,NET_DIFFP_PHASE_CONTROL,NET_DIFFP_PHASE_TOL,NET_DIFFP_PRIMARY_GAP,NET_DIFFP_UNCOUPLED_LENGTH,NET_TS_ALLOWED,NET_STUB_LENGTH,NET_IMPEDANCE_RULE,NET_PROPAGATION_DELAY,NET_RELATIVE_PROPAGATION_DELAY,NET_MAX_PARALLEL,NET_MAX_XTALK,NET_MAX_PEAK_XTALK,NET_MAX_INTER_XTALK,NET_MAX_INTRA_XTALK,NET_MAX_EXPOSED_LENGTH,NET_TOTAL_ETCH_LENGTH,NET_MIN_NOISE_MARGIN,NET_MAX_OVERSHOOT,NET_MIN_FIRST_SWITCH,NET_MAX_FINAL_SETTLE,NET_MIN_HOLD,NET_MIN_SETUP,NET_MAX_SSN,NET_MAX_SLEW_RATE,NET_PULSE_PARAM,NET_FIRST_INCIDENT,NET_EDGE_SENS,NET_CLK_2OUT_MAX,NET_CLK_2OUT_MIN,NET_CLK_SKEW_MAX,NET_CLK_SKEW_MIN,NET_CLOCK_NET,NET_TIMING_DELAY_OVERRIDE,NET_ASSIGN_TOPOLOGY,NET_TOPOLOGY_TEMPLATE,NET_TOPOLOGY_TEMPLATE_MAPPING_MODE,NET_TOPOLOGY_TEMPLATE_REVISION,NET_VOLTAGE,NET_SUBNET_NAME,NET_TESTER_GUARDBAND,NET_SHORT,NET_SHORTING_SCHEME,NET_WEIGHT,LAYERSET_GROUP') > -1:
+        elif item[3].find(
+                'NET_NAME,NET_BUS_NAME,NET_SPACING_TYPE,NET_PHYSICAL_TYPE,NET_ELECTRICAL_CONSTRAINT_SET,NET_ECL,NET_DRIVER_TERM_VAL,NET_LOAD_TERM_VAL,NET_FIXED,NET_RATSNEST_SCHEDULE,NET_NO_RAT,NET_NO_GLOSS,NET_NO_PIN_ESCAPE,NET_NO_RIPUP,NET_NO_ROUTE,NET_NO_TEST,NET_PROBE_NUMBER,NET_ROUTE_PRIORITY,NET_ROUTE_TO_SHAPE,NET_SAME_NET,NET_MIN_BVIA_GAP,NET_MIN_BVIA_STAGGER,NET_MAX_BVIA_STAGGER,NET_MIN_LINE_WIDTH,NET_MIN_NECK_WIDTH,NET_DIFFERENTIAL_PAIR,NET_DIFFP_COUPLED_MINUS,NET_DIFFP_COUPLED_PLUS,NET_DIFFP_GATHER_CONTROL,NET_DIFFP_MIN_SPACE,NET_DIFFP_NECK_GAP,NET_DIFFP_PHASE_CONTROL,NET_DIFFP_PHASE_TOL,NET_DIFFP_PRIMARY_GAP,NET_DIFFP_UNCOUPLED_LENGTH,NET_TS_ALLOWED,NET_STUB_LENGTH,NET_IMPEDANCE_RULE,NET_PROPAGATION_DELAY,NET_RELATIVE_PROPAGATION_DELAY,NET_MAX_PARALLEL,NET_MAX_XTALK,NET_MAX_PEAK_XTALK,NET_MAX_INTER_XTALK,NET_MAX_INTRA_XTALK,NET_MAX_EXPOSED_LENGTH,NET_TOTAL_ETCH_LENGTH,NET_MIN_NOISE_MARGIN,NET_MAX_OVERSHOOT,NET_MIN_FIRST_SWITCH,NET_MAX_FINAL_SETTLE,NET_MIN_HOLD,NET_MIN_SETUP,NET_MAX_SSN,NET_MAX_SLEW_RATE,NET_PULSE_PARAM,NET_FIRST_INCIDENT,NET_EDGE_SENS,NET_CLK_2OUT_MAX,NET_CLK_2OUT_MIN,NET_CLK_SKEW_MAX,NET_CLK_SKEW_MIN,NET_CLOCK_NET,NET_TIMING_DELAY_OVERRIDE,NET_ASSIGN_TOPOLOGY,NET_TOPOLOGY_TEMPLATE,NET_TOPOLOGY_TEMPLATE_MAPPING_MODE,NET_TOPOLOGY_TEMPLATE_REVISION,NET_VOLTAGE,NET_SUBNET_NAME,NET_TESTER_GUARDBAND,NET_SHORT,NET_SHORTING_SCHEME,NET_WEIGHT,LAYERSET_GROUP') > -1:
             # # print(item)
             # # print('')
             npr_brd_data = [x.split(',') for x in item[5:-1]]
@@ -1374,7 +1389,7 @@ def get_exclude_netlist(netlist, npr_brd_data):  # netlist = All_Net_List
                             '.*[0-9]\.[0-9]V.*', '.*[0-9]_[0-9]V.*', '.*_[0-9]V.*', '.*_[0-9][0-9]V.*',
                             '.*_[0-9]\.[0-9]V.*', '.*[0-9]P[0-9]V.*', '.[0-9]*P[0-9][0-9]V.*', '.*V_[0-9]P[0-9].*',
                             '.*\+[0-9]V.*', '.*\+[0-9][0-9]V.*', '.*?\d+V_S\d$', '\dV']
-    PWR_Net_List = [net for net in netlist for keyword in PWR_Net_KeyWord_List if re.findall(keyword, net) != []]\
+    PWR_Net_List = [net for net in netlist for keyword in PWR_Net_KeyWord_List if re.findall(keyword, net) != []] \
                    + PWR_Net_List_pro
     # # print(PWR_Net_List)
     PWR_Net_List = sorted(list(set(PWR_Net_List)))
@@ -1554,7 +1569,7 @@ def net_detect(Net_brd_data, SCH_object_list):
                         #     # print(sch.GetName())
                         # # print (pin + '\n')
                         connected_SCH_Pin_dict_temp[(sch.GetName(), pin)] = (
-                        (sch.GetXPoint(pin), sch.GetYPoint(pin)), '')
+                            (sch.GetXPoint(pin), sch.GetYPoint(pin)), '')
 
         # if net == 'PCH_HSOP0':
         #     # print(111, connected_SCH_Pin_dict_temp)
@@ -1675,6 +1690,7 @@ def get_connected_net_list_by_SCH_name(SCH_name):  # Nets in Exclude_Net_List ar
 def topology_format(net_name, topology_seg_ind):
     # Formatting function of exported results
     # print('net_name', net_name)
+    # print('topology_seg_ind', topology_seg_ind)
     net = get_net_object_by_name(net_name)
     # if net_name == 'PCH_HSOP0':
     #     print(net.GetName(), net.GetSegmentList(), net.GetWidth(), net.GetLength(), net.GetLayer())
@@ -1691,13 +1707,9 @@ def topology_format(net_name, topology_seg_ind):
         # 长度大于1才匹配
         if float(length) > 1:
             items = net.GetConnectedSCHListBySegInd(topology_seg_ind[i])
-            # if net_name == 'SPI_CLK_ROM1':
-            # print('')
-            # print('*************************************************************')
-            # print('topology_seg_ind[i]', topology_seg_ind[i])
             # print('items', items)
-            # print('*************************************************************')
             if i % 2 == 0:
+                # print(topology_seg_ind[i])
                 # print('items', items)
                 # 判断是否是芯片相接
                 # 与芯片相接则写成 [sch-pin]:layer:width 的形式
@@ -1712,7 +1724,6 @@ def topology_format(net_name, topology_seg_ind):
                         three_flag = True
                         # 顺序存入
                         for (sch, pin) in net.GetConnectedSCHListBySegInd(topology_seg_ind[i]):
-
                             content = '[%s-%s]:' % (sch, pin) + content
                             # content_extra = '[%s-%s]:' % (sch, pin) + content_extra
                         # 反向存入
@@ -1729,6 +1740,7 @@ def topology_format(net_name, topology_seg_ind):
                             content_extra = '[%s-%s]:' % (sch, pin) + content_extra
                             content_extra3 = '[%s-%s]:' % (sch, pin) + content_extra3
                     elif len(items) > 1:
+                        # print('before_content', content)
                         double_flag = True
                         # 顺序存入
                         for (sch, pin) in net.GetConnectedSCHListBySegInd(topology_seg_ind[i]):
@@ -1738,8 +1750,10 @@ def topology_format(net_name, topology_seg_ind):
                             # content_extra = '[%s-%s]:' % (sch, pin) + content_extra
                         # 反向存入
                         for (sch, pin) in items[::-1]:
-                            content_extra = content_extra + ':[%s-%s]' % (sch, pin)
-                            content_extra3 = content_extra3 + ':[%s-%s]' % (sch, pin)
+                            content_extra = '[%s-%s]:' % (sch, pin) + content_extra
+                            content_extra3 = '[%s-%s]:' % (sch, pin) + content_extra3
+                        # print('content', content)
+                        # print('content_extra', content_extra)
                 # 如不与芯片相接则写成 layer:width 的形式
                 else:
                     content = '%s:%s' % (layer, width)
@@ -1815,7 +1829,7 @@ def topology_format(net_name, topology_seg_ind):
                     topology_formatted_extra.append(length)
                     topology_formatted_extra3.append(content_extra3)
                     topology_formatted_extra3.append(length)
-
+    # print('')
     # print('topology_formatted', topology_formatted)
     # print('topology_formatted_extra', topology_formatted_extra)
     # print('topology_formatted_extra3', topology_formatted_extra3)
@@ -2139,7 +2153,7 @@ def net_mapping(sch_name, input_pin, previous_net=None):
             return [None], [None]
         else:
             # # print([sch.GetNet(output_pin) for output_pin in output_pin_list], output_pin_list)
-            return [sch.GetNet(output_pin) for output_pin in output_pin_list if sch.GetNet(output_pin) != previous_net],\
+            return [sch.GetNet(output_pin) for output_pin in output_pin_list if sch.GetNet(output_pin) != previous_net], \
                    output_pin_list
     else:
         return [None], [None]
@@ -2209,17 +2223,17 @@ def topology_extract2(start_net_name, start_sch_name):
             pin_list.append(None)
 
         sch_nochange_list = sch_list
-        # # print('first_sch_list', sch_list)
-        # # print('first_pin_list', pin_list)
-        previous_pin_list1 = copy.deepcopy(pin_list)
-        previous_pin_list2 = copy.deepcopy(pin_list)
-        previous_sch_pin_list1 = [etch_line_old.GetConnComp(line[-1])]
-        previous_sch_pin_list2 = [etch_line_old.GetConnComp(line[-2])]
-        # # print('first_previous_pin_list1', previous_pin_list1)
-        # # print('first_previous_sch_pin_list1', previous_sch_pin_list1)
+        # print('first_sch_list', sch_list)
+        # print('first_pin_list', pin_list)
+        # previous_pin_list1 = copy.deepcopy(pin_list)
+        # previous_pin_list2 = copy.deepcopy(pin_list)
+        # previous_sch_pin_list1 = [etch_line_old.GetConnComp(line[-1])]
+        # previous_sch_pin_list2 = [etch_line_old.GetConnComp(line[-2])]
+        # print('first_previous_pin_list1', previous_pin_list1)
+        # print('first_previous_sch_pin_list1', previous_sch_pin_list1)
         for ind in xrange(len(sch_nochange_list)):
             next_net, next_pin = net_mapping(sch_nochange_list[ind], pin_list[ind])
-            # # print('next_net, next_pin', next_net, next_pin)
+            # print('next_net, next_pin', next_net, next_pin)
             # next_net通常为单个线名，下列代码是否可以改写为 if next_net:
             for idxx_ in xrange(len(next_net)):
                 # start_net_name为每段信号线的名称， line为从两段线开始的ind对
@@ -2242,7 +2256,7 @@ def topology_extract2(start_net_name, start_sch_name):
             # print('first_net_list', net_list)
             # print('first_next_pin_list', next_pin_list)
             # print('first_sch_list', sch_list)
-            # # print()
+            # print('')
             net_list_start = net_list
             end = True
             # Ending Condition Detect
@@ -2252,8 +2266,7 @@ def topology_extract2(start_net_name, start_sch_name):
             j = -1
 
             pre_net_list = []
-            topology_out_list = []
-            topology_out_list.append(topology_list[0])   #f7684584 20190807
+            topology_out_list = [topology_list[0]]  # F7684584
 
             # Topology Detect for secondary part (net change)
             while end is False:
@@ -2267,9 +2280,13 @@ def topology_extract2(start_net_name, start_sch_name):
                 end = True
                 my_flag = 0
                 # # print(1111, topology_list)
+                # print('')
+                # print('begin', net_list)
+                # print('begin', sch_list)
+                # print('begin', next_pin_list)
                 for ij1 in xrange(len(net_list)):
-                    # # print(ij1, net_list[ij1], net_list)
                     i += 1
+                    # print(ij1, net_list[ij1], net_list)
                     # 下段代码为重复代码，可以写成函数简化
                     # 只进入信号线名
                     if net_list[ij1] not in non_signal_net_list + [None]:
@@ -2284,35 +2301,19 @@ def topology_extract2(start_net_name, start_sch_name):
 
                         try:
                             # 找出下一条线的段id
-                            # # print('net_list', net_list)
-                            # # print('sch_list', sch_list)
-                            # # print('next_pin_list_start', next_pin_list)
-                            # # print('previous_pin_list1', previous_pin_list1)
-                            # # print('previous_pin_list2', previous_pin_list2)
-                            # # print('before', net_list[ij1], sch_list[ij1], next_pin_list[ij1])
+                            # print('before', net_list[ij1], sch_list[ij1], next_pin_list[ij1])
                             # if previous_pin_list:
                             topology_seg_ind = topology_extract1(net_list[ij1], sch_list[ij1],
-                                                                    start_sch_pin=next_pin_list[ij1])
-                                                                    # previous_sch_pin1=previous_sch_pin_list1[ij1],
-                                                                    # previous_sch_pin2=previous_sch_pin_list2[ij1])
-                            # print('topology_extract11', topology_seg_ind)
-                            # # print('topology_extract11')
-                            # else:
-                            #     topology_seg_ind = topology_extract1(net_list[ij1], sch_list[ij1],
-                            #                                          start_sch_pin=next_pin_list[ij1],
-                            #                                          previous_sch_pin=None)
-                            #     # print('topology_extract12')
-                            # # print('topology_seg_ind', topology_seg_ind)
-                            # if start_net_name == 'USB3_P1_TX1P':
-                            #     # print(topology_seg_ind)
+                                                                 start_sch_pin=next_pin_list[ij1])
+                            # print('topology_seg_ind', topology_seg_ind)
                             for ind in xrange(len(topology_seg_ind)):
                                 # # print(i, ind, topology_seg_ind[ind])
                                 # 找出与芯片相接的线
                                 if etch_line.GetConnectedSCHListBySegInd(topology_seg_ind[ind][-1]) is not None:
-                                    previous_sch_pin_temp1.append(
-                                        etch_line.GetConnComp(topology_seg_ind[ind][-1]))
-                                    previous_sch_pin_temp2.append(
-                                        etch_line.GetConnComp(topology_seg_ind[ind][-2]))
+                                    # previous_sch_pin_temp1.append(
+                                    #     etch_line.GetConnComp(topology_seg_ind[ind][-1]))
+                                    # previous_sch_pin_temp2.append(
+                                    #     etch_line.GetConnComp(topology_seg_ind[ind][-2]))
                                     # 存入线的两端坐标值
                                     if topology_seg_ind[ind][-1][1] == 1:
                                         net_xy_point = etch_line.GetXY1(topology_seg_ind[ind][-1][0])
@@ -2348,61 +2349,50 @@ def topology_extract2(start_net_name, start_sch_name):
                                 else:
                                     sch_list_temp.append(None)
                                     pin_list_temp.append(None)
-                                    previous_sch_pin_temp1.append(None)
-                                    previous_sch_pin_temp2.append(None)
+                                    # previous_sch_pin_temp1.append(None)
+                                    # previous_sch_pin_temp2.append(None)
                                 # print('net_list[ij1]', net_list[ij1])
                                 # print('topology_seg_ind[ind]', topology_seg_ind[ind])
                                 format_item_list = topology_format(net_list[ij1], topology_seg_ind[ind])
-                                # print('format_item_list', format_item_list)
-                                format_flag = False
-                                if len(format_item_list) > 1:
-                                    format_flag = True
-                                    sch_list_temp.append(sch_list_temp[-1])
-                                    pin_list_temp.append(pin_list_temp[-1])
-                                    previous_sch_pin_temp1.append(previous_sch_pin_temp1[-1])
-                                    previous_sch_pin_temp2.append(previous_sch_pin_temp2[-1])
-                                # # print('sch_list_temp', sch_list_temp)
-                                # # print('pin_list_temp', pin_list_temp)
-                                # try:
-                                #     previous_sch_pin_list = topology_list[i][-2].split('[')[-1].strip(']').split('-')
-                                # except:
-                                #     previous_sch_pin_list = []
-                                # # print('error', topology_list[i][::-1])
+                                # print('format_item_list', len(format_item_list), format_item_list)
+                                format_flag = True if len(format_item_list) > 1 else False
                                 previous_net = format_item_list[0][0]
-                                # for items in topology_list[i][::-1]:
-                                #     # # print('type', type(items))
-                                #     if type(items) not in [type(2.0), type(2)] and items.find(':') == -1:
-                                #         previous_net = items
-                                #         break
-                                # print('format_item_list', format_item_list)
-                                # print('previous_net', previous_net)
+
                                 next_net, next_pin = net_mapping(sch_list_temp[-1], pin_list_temp[-1],
-                                                                    previous_net=previous_net)
+                                                                 previous_net=previous_net)
                                 # print('next_net', next_net)
                                 # print('next_pin', next_pin)
 
                                 ########################################################
                                 # 自己修改的代码
+                                # print('net_list_start', len(net_list_start), net_list_start)
                                 start_flag = 1
                                 for idxx_ in xrange(len(next_net)):
                                     for start_ind in xrange(len(net_list_start)):
-                                        if next_net[idxx_] == net_list_start[start_ind] or next_net[idxx_] == start_net_name:  #-F7684584
+                                        # 如果回到最初的net_list，意思是转了一圈回来，为了防止无限循环，则退出
+                                        if next_net[idxx_] == net_list_start[start_ind] \
+                                                or next_net[idxx_] == start_net_name:  # -F7684584
                                             # and next_pin[idxx_] == next_pin_list_start[start_ind]\
                                             # and sch_list_temp[idxx_] == sch_list_start[start_ind]:
                                             net_list_temp.append(None)
                                             next_pin_list_temp.append(None)
                                             start_flag = 0
+                                        # 如果next_net不在初始net_list中，则保存
                                         if start_ind == len(net_list_start) - 1 and start_flag:
-                                            net_list_temp.append(next_net[idxx_])
-                                            next_pin_list_temp.append(next_pin[idxx_])
-                                            if format_flag:
+                                            # net_list_temp.append(next_net[idxx_])
+                                            # next_pin_list_temp.append(next_pin[idxx_])
+                                            # if format_flag:
+                                            for x in range(len(format_item_list)):
                                                 net_list_temp.append(next_net[idxx_])
                                                 next_pin_list_temp.append(next_pin[idxx_])
+                                                if format_flag and x > 0:
+                                                    sch_list_temp.append(sch_list_temp[-1])
+                                                    pin_list_temp.append(pin_list_temp[-1])
 
                                     ########################################################
 
-                                    if idxx_ > 0:
-                                        sch_list_temp.append(sch_list_temp[-1])
+                                    # if idxx_ > 0:
+                                    #     sch_list_temp.append(sch_list_temp[-1])
                                     # # print(222, topology_list[i])
                                     # # print(333, topology_format(net_list[ij1], topology_seg_ind[ind]))
                                     # format_item_list = []
@@ -2441,12 +2431,15 @@ def topology_extract2(start_net_name, start_sch_name):
                                                 topology_list[i] + format_item_list[0])
                                             topology_out_list.append(
                                                 topology_list[i] + format_item_list[0])
-                                            # print('topology_out_list2', topology_list[i] + format_item_list[0])
+
+                                # print('in_net_list_temp', net_list_temp)
+                                # print('in_sch_list_temp', sch_list_temp)
+
                         except:
                             topology_list_temp.append(topology_list[i] + ['Exception;%s' % net_list[ij1]])
                             topology_out_list.append(topology_list[i] + ['Exception;%s' % net_list[ij1]])
                             sch_list_temp.append(None)
-                            pin_list_temp.append(None)
+                            # pin_list_temp.append(None)
                             previous_sch_pin_temp1.append(None)
                             previous_sch_pin_temp2.append(None)
                             net_list_temp.append(None)
@@ -2457,7 +2450,7 @@ def topology_extract2(start_net_name, start_sch_name):
                         topology_out_list.append(topology_list[i] + [net_list[ij1]])
                         # # print('topology_out_list3', topology_list[i] + [net_list[ij1]])
                         sch_list_temp.append(None)
-                        pin_list_temp.append(None)
+                        # pin_list_temp.append(None)
                         previous_sch_pin_temp1.append(None)
                         previous_sch_pin_temp2.append(None)
                         net_list_temp.append(None)
@@ -2471,24 +2464,28 @@ def topology_extract2(start_net_name, start_sch_name):
                         sch_list_temp.append(None)
                         previous_sch_pin_temp1.append(None)
                         previous_sch_pin_temp2.append(None)
-                        pin_list_temp.append(None)
+                        # pin_list_temp.append(None)
                         net_list_temp.append(None)
                         next_pin_list_temp.append(None)
+
                     # if start_net_name == 'DPC_AUX_DP_C':
                     #     # print(topology_list)
-                # # print(2, topology_list_temp)
+                    # print('topology_list_temp', topology_list_temp)
+                    # print('net_list_temp', net_list_temp)
+                    # print('sch_list_temp', sch_list_temp)
+                    # print('')
                 topology_list = list(topology_list_temp)
 
-                # # print('topology_list_final', topology_list)
+                # print('topology_list_final', topology_list)
                 # if start_net_name == 'DPC_AUX_DP_C':
                 #     # print(topology_list)
 
                 net_list = list(net_list_temp)
-                # # print('last_net_list', net_list)
-                # # print('pre_net_list', pre_net_list)
+                # print('last_net_list', net_list)
+                # print('pre_net_list', pre_net_list)
 
                 next_pin_list = list(next_pin_list_temp)
-                # # print('last_next_pin_list', next_pin_list)
+                # print('last_next_pin_list', next_pin_list)
 
                 # previous_sch_pin_list1 = list(previous_sch_pin_temp1)
                 # # print('last_previous_sch_pin_list1', previous_sch_pin_list1)
@@ -2565,6 +2562,96 @@ def topology_extract2(start_net_name, start_sch_name):
     #     return topology_list
 
 
+def corss_over_check(topology_list):
+    global All_Net_List, All_Layer_List
+    topology_list_cross = []
+    for idx1 in xrange(len(topology_list)):
+        topology_list_copy = copy.deepcopy(topology_list)
+        topology_list_unit_check0 = copy.deepcopy(topology_list[idx1])
+        topology_list_unit_check = copy.deepcopy(topology_list[idx1])
+        topology_list_copy.remove(topology_list_unit_check)
+        cross_idx = []
+        for idx2 in xrange(len(topology_list_copy)):
+            branch_len = min(len(topology_list_copy[idx2]), len(topology_list_unit_check0))
+            for idx3 in xrange(branch_len):
+                try:
+                    if topology_list_unit_check0[idx3] and topology_list_copy[idx2][idx3]:
+                        if topology_list_unit_check0[idx3] != topology_list_copy[idx2][idx3]:
+                            # print('A:', topology_list_unit_check0)
+                            # print('B:', topology_list_copy[idx2])
+
+                            if str(topology_list_unit_check0[idx3]).find('GND') > -1 and idx3 not in cross_idx:
+                                if str(topology_list_unit_check0[idx3 - 2]).split(':')[-1].find('[') == 0:
+                                    topology_list_unit_check[idx3 - 2] = ':'.join(
+                                        topology_list_unit_check[idx3 - 2].split(':') + ['$CROSS'])
+                                cross_idx.append(idx3)
+                                break
+                            elif str(topology_list_unit_check0[idx3]).find(':') > -1 and \
+                                    str(topology_list_unit_check0[idx3]).split(':')[0].find(
+                                            '[') > -1 and idx3 not in cross_idx:
+                                if str(topology_list_unit_check0[idx3]).split(':')[0].find('[') == 0:
+                                    topology_list_unit_check[idx3] = ':'.join(
+                                        ['CROSS$'] + topology_list_unit_check[idx3].split(':'))
+                                if str(topology_list_unit_check0[idx3 - 2]).split(':')[-1].find('[') == 0:
+                                    topology_list_unit_check[idx3 - 2] = ':'.join(
+                                        topology_list_unit_check[idx3 - 2].split(':') + ['$CROSS'])
+                                cross_idx.append(idx3)
+                                break
+                            elif str(topology_list_unit_check0[idx3]).find(':') > -1 and \
+                                    str(topology_list_unit_check0[idx3]).split(':')[
+                                        0] in All_Layer_List and idx3 not in cross_idx:
+                                topology_list_unit_check[idx3] = ':'.join(
+                                    ['CROSS$'] + topology_list_unit_check[idx3].split(':'))
+                                cross_idx.append(idx3)
+                                break
+                            elif str(topology_list_unit_check0[idx3]) in All_Net_List and idx3 not in cross_idx:
+                                if str(topology_list_unit_check0[idx3 - 2]).split(':')[-1].find('[') == 0:
+                                    topology_list_unit_check[idx3 - 2] = ':'.join(
+                                        topology_list_unit_check[idx3 - 2].split(':') + ['$CROSS'])
+                                cross_idx.append(idx3)
+                                break
+                            # elif idx3 in cross_idx:   #当与上一个分叉相同时，退出
+                            #     break
+                            else:
+                                # print('diff_A:', topology_list_unit_check0[idx3])
+                                # print('diff_B:', topology_list_copy[idx2][idx3])
+                                break
+                        else:  # 过孔同层分叉
+                            if str(topology_list_unit_check0[idx3]).split(':')[0] in All_Layer_List and \
+                                    topology_list_unit_check0[idx3 + 1] != topology_list_copy[idx2][idx3 + 1] \
+                                    and idx3 not in cross_idx:
+                                topology_list_unit_check[idx3] = ':'.join(
+                                    ['CROSS$'] + topology_list_unit_check[idx3].split(':'))
+                                cross_idx.append(idx3)
+                                break
+                            # elif idx3 in cross_idx:   #当与上一个分叉相同时，退出
+                            #     break
+
+                except:
+                    print("ununsxpected error:", sys.exc_info())
+                    raise
+        # print('C:', topology_list_unit_check)
+        topology_list_cross.append(topology_list_unit_check)
+
+    # 补齐没有显示分叉的分支
+    for topology_branch in topology_list_cross:
+        topology_list_cross_copy = copy.deepcopy(topology_list_cross)
+        if str(topology_branch[-2]).split(':')[-1] != '$CROSS':
+            topology_list_cross_copy.remove(topology_branch)
+            last_part = str(topology_branch[-2]).split(':')[-1]
+            for idx2 in xrange(len(topology_list_cross_copy)):
+                if len(topology_list_cross_copy[idx2]) > len(topology_branch) + 1:
+                    if str(topology_list_cross_copy[idx2][len(topology_branch)]).split(':')[0] == 'CROSS$' and \
+                            str(topology_list_cross_copy[idx2][len(topology_branch)]).split(':')[1] == last_part:
+                        topology_branch[-2] = ':'.join(topology_branch[-2].split(':') + ['$CROSS'])
+                        # print('D:', topology_branch)
+                        # print("D:", topology_list_cross)
+                        break
+
+    topology_list_cross.sort()
+    return topology_list_cross
+
+
 # 简化 topology_extract2 生成的数据格式
 # 返回每个信号线的起始芯片和终止芯片，换层次数，总长，加上topology_extract2的数据
 def topology_list_format_simplified(topology_list):
@@ -2582,6 +2669,7 @@ def topology_list_format_simplified(topology_list):
     # signal_net_list = [i for i in All_Net_List if i not in non_signal_net_list]
     # 这种方法要优于立即执行函数表达式
     signal_net_list = list(set(All_Net_List) ^ set(non_signal_net_list))
+    topology_list = corss_over_check(topology_list)
     # start2_time = time.clock()
     # # print('sm1', start2_time - start1_time)
     # , layout_error_diff_list, layout_error_se_list
@@ -2605,7 +2693,14 @@ def topology_list_format_simplified(topology_list):
             # # print(0, topology_list[idx1])
             # # print(1, topology_list[idx1][-2])
             # # print(2, str(topology_list[idx1][-2]).split(':')[-1].find('['))
-            if str(topology_list[idx1][-2]).split(':')[-1].find('[') == 0:
+            if str(topology_list[idx1][-2]).split(':')[-1].find('$') == 0 and str(topology_list[idx1][-2]).split(':')[
+                -2].find('[') == 0:  # f7684584
+                end_sch_name = topology_list[idx1][-2].split(':')[-2][1:-1]
+
+            elif str(topology_list[idx1][-3]).split(':')[-1].find('$') == 0 and str(topology_list[idx1][-3]).split(':')[
+                -2].find('[') == 0:  # f7684584
+                end_sch_name = topology_list[idx1][-3].split(':')[-2][1:-1]
+            elif str(topology_list[idx1][-2]).split(':')[-1].find('[') == 0:
                 end_sch_name = topology_list[idx1][-2].split(':')[-1][1:-1]
 
             elif str(topology_list[idx1][-3]).split(':')[-1].find('[') == 0:
@@ -3534,7 +3629,8 @@ def RunSignalTopology():
     # 获取值
     # Read Allegro Report Data
     global SCH_object_list, net_object_list, All_Net_List
-    SCH_brd_data, Net_brd_data, diff_pair_brd_data, stackup_brd_data, npr_brd_data = read_allegro_data(allegro_report_path)
+    SCH_brd_data, Net_brd_data, diff_pair_brd_data, stackup_brd_data, npr_brd_data = read_allegro_data(
+        allegro_report_path)
     # # print(SCH_brd_data.GetData())
     SCH_object_list = SCH_detect(SCH_brd_data)
     net_object_list = net_detect(Net_brd_data, SCH_object_list)
@@ -3578,30 +3674,41 @@ def RunSignalTopology():
         for check_sch_name in start_sch_name_list:
             check_net_list = get_connected_net_list_by_SCH_name(check_sch_name)
             check_net_list = [x for x in check_net_list if x in total_check_net_list]
-            # check_net_list = ['SLP_S0_PTL_N']
+            # check_net_list = ['SPI_MISO']
             for check_net_name in check_net_list:
                 try:
                     # 遍历每个器件连接的所有线名
                     # check_sch_name是符合最小pin脚个数的芯片，check_net_name是与芯片相接的信号线列表的遍历
                     # if check_net_name == 'SPI_CLK_PCH_R':
+                    # print(1, check_net_name, check_sch_name)
+                    # print('')
                     topology_list = topology_extract2(check_net_name, check_sch_name)
                     topology_output_list = []
                     # print('topology_list', topology_list)
+                    # print('')
                     for x in topology_list:
                         if x not in topology_output_list:
                             topology_output_list.append(x)
-                    # print('')
                     # print('topology_output_list', topology_output_list)
+                    # print('')
                     # print('topology_list', topology_list)
                     topology_1_list = topology_list_format_simplified(topology_output_list)
                     topology_1_output_list = []
-                    # print('topology_list', topology_list)
+                    # print('topology_1_list', topology_1_list)
                     for x in topology_1_list:
                         if x not in topology_1_output_list:
                             topology_1_output_list.append(x)
-                    # print('topology_1_list', topology_1_list)
+                    # print(check_sch_name, check_net_name)
+                    # print('topology_1_output_list', topology_1_output_list)
                     # print('')
-                    topology_dict[(check_sch_name, check_net_name, 'all')] = topology_1_output_list
+                    old_topology_list = topology_dict.get((check_sch_name, check_net_name, 'all'), [])
+                    # print('old_topology_list', old_topology_list)
+                    for x in topology_1_output_list:
+                        if x not in old_topology_list:
+                            old_topology_list += [x]
+                    topology_dict[(check_sch_name, check_net_name, 'all')] = old_topology_list
+                    # print('old_topology_list_out', old_topology_list)
+                    # topology_dict[(check_sch_name, check_net_name, 'all')] = topology_1_output_list
                     if check_sch_ok_net_dict.get(check_sch_name) == None:
                         check_sch_ok_net_dict[check_sch_name] = [check_net_name]
                     else:
@@ -4307,15 +4414,15 @@ def CheckTopology(specified_range=None):
                     bundle_max_mismatch = 0
                     for idx2 in xrange(unit_bundle_number):
                         len_tmp_ = float(act_data_dict[(
-                        (start_sch_list[idx1 + idx2], start_net_list[idx1 + idx2], end_sch_list[idx1 + idx2]),
-                        'total_length')])
+                            (start_sch_list[idx1 + idx2], start_net_list[idx1 + idx2], end_sch_list[idx1 + idx2]),
+                            'total_length')])
                         len_list_tmp.append(len_tmp_)
                     bundle_max_mismatch = max(len_list_tmp) - min(len_list_tmp)
 
                     for idx2 in xrange(unit_bundle_number):
                         act_data_dict[(
-                        (start_sch_list[idx1 + idx2], start_net_list[idx1 + idx2], end_sch_list[idx1 + idx2]),
-                        'bundle_mismatch')] = bundle_max_mismatch
+                            (start_sch_list[idx1 + idx2], start_net_list[idx1 + idx2], end_sch_list[idx1 + idx2]),
+                            'bundle_mismatch')] = bundle_max_mismatch
         else:
             for idx1 in xrange(len(start_net_list)):
                 act_data_dict[
@@ -4663,7 +4770,8 @@ def CheckTopology(specified_range=None):
     # # print(layer_type_dict)
 
     # 获取每层的厚度以及总的厚度
-    SCH_brd_data, Net_brd_data, diff_pair_brd_data, stackup_brd_data, npr_brd_data = read_allegro_data(allegro_report_path)
+    SCH_brd_data, Net_brd_data, diff_pair_brd_data, stackup_brd_data, npr_brd_data = read_allegro_data(
+        allegro_report_path)
     layerLength_list = []
     data = stackup_brd_data.GetData()
     data = data[1:-3]
@@ -4857,10 +4965,10 @@ def CheckTopology(specified_range=None):
                             (start_sch_list[idx123], start_net_list[idx123], end_sch_list[idx123])) == None:
                         # # print((start_sch_list[idx123], start_net_list[idx123], end_sch_list[idx123]))
                         act_data_dict[((start_sch_list[idx123], start_net_list[idx123], end_sch_list[idx123]), 'via')] = \
-                        line[3]
+                            line[3]
                         act_data_dict[
                             ((start_sch_list[idx123], start_net_list[idx123], end_sch_list[idx123]), 'total_length')] = \
-                        line[4].split()[1]
+                            line[4].split()[1]
                         act_data_dict[(start_sch_list[idx123], start_net_list[idx123], end_sch_list[idx123])] = [x for x
                                                                                                                  in
                                                                                                                  line[
@@ -4990,9 +5098,11 @@ def CheckTopology(specified_range=None):
             act_value = act_value_list[ind1]
 
             for ind2 in xrange(len(act_value)):
-                if str(act_value[ind2]).find(':') > -1 and isfloat(str(act_value[ind2]).split(':')[-1]) \
-                        or str(act_value[ind2]).find('net$') > -1:
+                if str(act_value[ind2]).find('net$') > -1:  # f7684584
                     half_width_list.append(str(act_value[ind2]).split(':')[-1])
+                # if str(act_value[ind2]).find(':') > -1 and isfloat(str(act_value[ind2]).split(':')[-1]) \
+                #         or str(act_value[ind2]).find('net$') > -1:
+                #     half_width_list.append(str(act_value[ind2]).split(':')[-1])
 
                 if str(act_value[ind2]).find(':') > -1:
                     for x in act_value[ind2].split(':'):
@@ -5002,8 +5112,12 @@ def CheckTopology(specified_range=None):
                 if str(act_value[ind2]).find('net$') > -1:
                     half_layer_list.append(act_value[ind2])
 
-                if str(act_value[ind2]).find(':') > -1 and isfloat(str(act_value[ind2]).split(':')[-2]):
-                    half_width_list.append(str(act_value[ind2]).split(':')[-2])
+                if str(act_value[ind2]).find(':') > -1:  # f7684584
+                    for x in act_value[ind2].split(':'):
+                        if isfloat(x):
+                            half_width_list.append(x)
+                # if str(act_value[ind2]).find(':') > -1 and isfloat(str(act_value[ind2]).split(':')[-2]):
+                #     half_width_list.append(str(act_value[ind2]).split(':')[-2])
 
                 if str(act_value[ind2]).find(':') == -1:
                     half_result_list.append(act_value[ind2])
@@ -5098,12 +5212,14 @@ def CheckTopology(specified_range=None):
                     seg = segment_list[idx1]
 
                     layer_change_count = 0
+                    cross_over_count = 0
 
                     # Check Order trace width, connect sch, change layer
                     check_length = False
                     check_connect_sch = False
                     check_layer_change = False
                     check_layer_change_num = 1
+                    check_cross_over_num = 1
                     check_cross_over = False
                     # # print('trace_width_list', trace_width_list[idx1])
 
@@ -5131,6 +5247,15 @@ def CheckTopology(specified_range=None):
                             elif re.findall('^Y\d$', layer_change_list[idx1]) != []:
                                 check_layer_change = True
                                 check_layer_change_num = int(re.findall('^Y(\d)$', layer_change_list[idx1])[0])
+                        except:
+                            pass
+
+                        try:  # f7684584
+                            if cross_over_list[idx1] == 'Y':
+                                check_cross_over = True
+                            elif re.findall('^Y\d$', cross_over_list[idx1]) != []:
+                                check_cross_over = True
+                                check_cross_over_num = int(re.findall('^Y(\d)$', cross_over_list[idx1])[0])
                         except:
                             pass
 
@@ -5238,7 +5363,7 @@ def CheckTopology(specified_range=None):
                                                     break
 
                                                 layer_next = \
-                                                [x for x in act_seg_next.split(':') if x in All_Layer_List][0]
+                                                    [x for x in act_seg_next.split(':') if x in All_Layer_List][0]
                                                 if layer != layer_next:
                                                     layer_change_count += 1
                                                     if layer_change_count == check_layer_change_num:
@@ -5252,13 +5377,29 @@ def CheckTopology(specified_range=None):
                                                     end = True
                                                     break
 
+                                        # if check_cross_over:
+                                        #     try:
+                                        #         act_seg_next = act_data[0]
+                                        #
+                                        #         if str(act_seg_next).find('net$') > -1:
+                                        #             end = True
+                                        #             break
+                                        #
+                                        #     except:
+                                        #         if act_data != []:
+                                        #             result_list.append('Warning!')
+                                        #             check_cross_over_wrong = True
+                                        #             end = True
+                                        #             break
+
                                         if check_cross_over:
                                             try:
                                                 act_seg_next = act_data[0]
-
-                                                if str(act_seg_next).find('net$') > -1:
-                                                    end = True
-                                                    break
+                                                if 'CROSS$' in act_seg_next.split(':'):  # f7684584
+                                                    cross_over_count += 1
+                                                    if cross_over_count == check_cross_over_num:
+                                                        end = True
+                                                        break
 
                                             except:
                                                 if act_data != []:
@@ -5294,7 +5435,7 @@ def CheckTopology(specified_range=None):
 
                             if len(act_data) > 0 and ignore_key1 not in ignore_segment_dict[
                                 (start_sch_list[id1], start_net_list[id1], end_sch_list[id1])] and act_data[0].find(
-                                    'net$') > -1:
+                                'net$') > -1:
 
                                 result_list.append(act_data[1].split(':')[0][1:-1])
                                 # # print(1, result_list)
@@ -5311,11 +5452,11 @@ def CheckTopology(specified_range=None):
 
                         elif seg == 'Total Length':
                             result_list.append(act_data_dict[(
-                            (start_sch_list[id1], start_net_list[id1], end_sch_list[id1]), 'total_length')])
+                                (start_sch_list[id1], start_net_list[id1], end_sch_list[id1]), 'total_length')])
 
                         elif segment_list[idx1] == 'Via Count':
                             result_list.append(act_data_dict[(
-                            (start_sch_list[id1], start_net_list[id1], end_sch_list[id1]), 'via')].split()[1])
+                                (start_sch_list[id1], start_net_list[id1], end_sch_list[id1]), 'via')].split()[1])
                         elif re.findall(r'\+|\-|\*|\/', seg) != []:
 
                             if seg not in ignore_segment_dict[
@@ -5343,10 +5484,10 @@ def CheckTopology(specified_range=None):
 
                         elif seg == 'Total Mismatch':
                             result_list.append(act_data_dict[(
-                            (start_sch_list[id1], start_net_list[id1], end_sch_list[id1]), 'total_mismatch')])
+                                (start_sch_list[id1], start_net_list[id1], end_sch_list[id1]), 'total_mismatch')])
                         elif segment_list[idx1] == 'Layer Mismatch':
                             result_list.append(act_data_dict[(
-                            (start_sch_list[id1], start_net_list[id1], end_sch_list[id1]), 'layer_mismatch')])
+                                (start_sch_list[id1], start_net_list[id1], end_sch_list[id1]), 'layer_mismatch')])
                         #
                         # elif seg == 'Segment Mismatch':
                         #     act_data_dict = SegmentMismatch(start_sch_list, start_net_list, end_sch_list, act_data_dict,
@@ -5356,7 +5497,7 @@ def CheckTopology(specified_range=None):
                         #                                        end_sch_list[id1]), 'segment_mismatch')])
                         elif segment_list[idx1] == 'Skew to Bundle':
                             result_list.append(act_data_dict[(
-                            (start_sch_list[id1], start_net_list[id1], end_sch_list[id1]), 'bundle_mismatch')])
+                                (start_sch_list[id1], start_net_list[id1], end_sch_list[id1]), 'bundle_mismatch')])
                         elif seg == 'Skew to Target':
 
                             if '$SK2T' not in ignore_segment_dict[
@@ -5365,8 +5506,8 @@ def CheckTopology(specified_range=None):
                                 (start_sch_list[id1], start_net_list[id1], end_sch_list[id1])]:
                                 if target_list_all != []:
                                     result_list.append(act_data_dict[(
-                                    (start_sch_list[id1], start_net_list[id1], end_sch_list[id1]),
-                                    'skew2target%d' % skew2target_count)])
+                                        (start_sch_list[id1], start_net_list[id1], end_sch_list[id1]),
+                                        'skew2target%d' % skew2target_count)])
                                 else:
                                     result_list.append('NA')
                             else:
@@ -5381,8 +5522,8 @@ def CheckTopology(specified_range=None):
                                 (start_sch_list[id1], start_net_list[id1], end_sch_list[id1])]:
                                 if topology_name_list_all != []:
                                     result_list.append(act_data_dict[(
-                                    (start_sch_list[id1], start_net_list[id1], end_sch_list[id1]),
-                                    'group_mismatch%d' % group_mismatch_count)])
+                                        (start_sch_list[id1], start_net_list[id1], end_sch_list[id1]),
+                                        'group_mismatch%d' % group_mismatch_count)])
                                 else:
                                     result_list.append('NA')
                             else:
@@ -5486,7 +5627,7 @@ def CheckTopology(specified_range=None):
     active_sheet.autofit('c')
 
     ShowResults(color_ind_list, specified_range=specified_range)
-    
+
 
 def BatchUpdate_Topology(specified_range=None):
     """
@@ -5981,26 +6122,8 @@ def BatchUpdate_Topology(specified_range=None):
         return act_data_dict
 
     ClearCheckResults(specified_range=specified_range)
-
     wb = Book(xlsm_path).caller()
     active_sheet = wb.sheets.active
-
-    for cell in active_sheet.api.UsedRange.Cells:
-        if cell.Value == 'Topology':
-            cell_idx = (cell.Row, cell.Column)
-            topology_table = active_sheet.range(cell_idx).current_region.value
-            for idx1 in xrange(len(topology_table)):
-                line = topology_table[idx1]
-                for idx2 in xrange(len(line)):
-                    if line[idx2] == 'Net Name':
-                        spec_table_length = idx1 + 1
-                        break
-            start_sch_ind = (cell_idx[0] + spec_table_length, cell_idx[1])
-            end_sch_ind = (start_sch_ind[0], start_sch_ind[1] + 1)
-            start_net_ind = (end_sch_ind[0], end_sch_ind[1] + 1)
-            result_ind2 = (start_net_ind[0], start_net_ind[1] + 1)
-            active_sheet.range(result_ind2).expand('table').clear()
-
     color_ind_list = []
     allegro_report_path, layer_type_dict, start_sch_name_list, progress_ind, All_Layer_List = GetSetting()
     All_Layer_List = list(set(layer_type_dict.keys()))
@@ -6012,931 +6135,1659 @@ def BatchUpdate_Topology(specified_range=None):
     layerLength_list = []
     data = stackup_brd_data.GetData()
     data = data[1:-3]
+
+    selection_range = wb.app.selection
+    selected_flag = False
+    if selection_range.value == 'Topology':
+        selected_flag = True
+        selected_idx = (selection_range.row, selection_range.column)
+
     # ##print(data)
     for idx in range(len(data)):
         data[idx] = data[idx].split(',')
         layerLength_list.append({data[idx][0]: data[idx][3]})  # 存储所有层的厚度
-    # ##print('layerLength_list',layerLength_list)
 
     for cell in active_sheet.api.UsedRange.Cells:
         if cell.Value == 'Topology':
             cell_idx = (cell.Row, cell.Column)
-            # ##print('cell_idx',cell_idx)
-            topology_table = active_sheet.range(cell_idx).current_region.value
-            for se_ind in xrange(len(topology_table[2])):
-                # 获取Segment Mismatch的管控条件
-                if topology_table[2][se_ind] and topology_table[2][se_ind].find('Segment Mismatch') > -1:
-                    se1_ind = se_ind
-            for idx1 in xrange(len(topology_table)):
-                line = topology_table[idx1]
-                for idx2 in xrange(len(line)):
-                    if line[idx2] == 'Net Name':
-                        spec_table_length = idx1 + 1
-                        break
-            # ##print('spec_table_length',spec_table_length)
+            # 从选中处开始
+            if selected_flag:
+                if cell_idx[0] >= selected_idx[0]:
+                    topology_table = active_sheet.range(cell_idx).current_region.value
+                    for idx1 in xrange(len(topology_table)):
+                        line = topology_table[idx1]
+                        # print(line)
+                        for idx2 in xrange(len(line)):
+                            if line[idx2] == 'Net Name':
+                                spec_table_length = idx1 + 1
+                                break
+                    start_sch_ind = (cell_idx[0] + spec_table_length, cell_idx[1])
+                    end_sch_ind = (start_sch_ind[0], start_sch_ind[1] + 1)
+                    start_net_ind = (end_sch_ind[0], end_sch_ind[1] + 1)
+                    result_ind2 = (start_net_ind[0], start_net_ind[1] + 1)
+                    active_sheet.range(result_ind2).expand('table').clear()
 
-            # 获取坐标
-            start_sch_ind = (cell_idx[0] + spec_table_length, cell_idx[1])
-            end_sch_ind = (start_sch_ind[0], start_sch_ind[1] + 1)
-            start_net_ind = (end_sch_ind[0], end_sch_ind[1] + 1)
-            result_ind1 = (start_net_ind[0], start_net_ind[1] - 2)
-            result_ind2 = (start_net_ind[0], start_net_ind[1] + 1)
+                    for se_ind in xrange(len(topology_table[2])):
+                        # 获取Segment Mismatch的管控条件
+                        if topology_table[2][se_ind] and topology_table[2][se_ind].find('Segment Mismatch') > -1:
+                            se1_ind = se_ind
+                    for idx1 in xrange(len(topology_table)):
+                        line = topology_table[idx1]
+                        for idx2 in xrange(len(line)):
+                            if line[idx2] == 'Net Name':
+                                spec_table_length = idx1 + 1
+                                break
+                    # ##print('spec_table_length',spec_table_length)
 
-            for idxx in xrange(len(topology_table)):
-                row_tmp = topology_table[idxx]
-                if 'Start Segment Name' in row_tmp:
-                    segment_list = topology_table[idxx][3::]
-                    segment_list = [x for x in segment_list if x not in ['', None]]
-                    result_idx = segment_list.index('Result')
-                    # ##print(result_idx)
-                elif 'Layer' in topology_table[idxx]:
-                    layer_list = []
-                    for x in topology_table[idxx][3::]:
-                        layer_list.append(str(x))
-                    layer_list = layer_list[0:result_idx + 1]
-                    layer_list = [x.split('/') for x in layer_list]
-                    # ##print(layer_list)
-                elif 'Layer Change' in topology_table[idxx]:
-                    layer_change_list = []
-                    for x in topology_table[idxx][3::]:
-                        layer_change_list.append(str(x))
-                    layer_change_list = layer_change_list[0:result_idx + 1]
-                elif 'Connect Component' in row_tmp:
-                    connect_sch_list = []
-                    for x in topology_table[idxx][3::]:
-                        connect_sch_list.append(str(x))
-                    connect_sch_list = connect_sch_list[0:result_idx + 1]
-                elif 'Cross Over' in row_tmp:
-                    cross_over_list = []
-                    for x in topology_table[idxx][3::]:
-                        cross_over_list.append(str(x))
-                    cross_over_list = cross_over_list[0:result_idx + 1]
-                elif 'Trace Width' in topology_table[idxx]:
-                    trace_width_list = []
-                    for x in topology_table[idxx][3::]:
-                        trace_width_list.append(str(x))
-                    trace_width_list = trace_width_list[0:result_idx + 1]
-                    for idx in xrange(len(trace_width_list)):
-                        # 得到的数都为浮点数
-                        tw = trace_width_list[idx]
-                        # 数据为浮点数时，如3.5，或者有 / 时（差分信号）
-                        if isfloat(trace_width_list[idx]) or tw.find('/') > -1:
-                            trace_width_list[idx] = ['%.3f' % float(x) for x in trace_width_list[idx].split('/')]
-                elif 'Space' in row_tmp:
-                    space_list = []
-                    for x in topology_table[idxx][3::]:
-                        space_list.append(str(x))
-                    space_list = space_list[0:result_idx + 1]
-                elif 'Min' in row_tmp:
-                    spec_min_list = []
-                    for x in topology_table[idxx][3::]:
-                        spec_min_list.append(str(x))
-                    spec_min_list = spec_min_list[0:result_idx + 1]
-                elif 'Max' in row_tmp:
-                    spec_max_list = []
-                    for x in topology_table[idxx][3::]:
-                        spec_max_list.append(str(x))
-                    spec_max_list = spec_max_list[0:result_idx + 1]
+                    # 获取坐标
+                    start_sch_ind = (cell_idx[0] + spec_table_length, cell_idx[1])
+                    end_sch_ind = (start_sch_ind[0], start_sch_ind[1] + 1)
+                    start_net_ind = (end_sch_ind[0], end_sch_ind[1] + 1)
+                    result_ind1 = (start_net_ind[0], start_net_ind[1] - 2)
+                    result_ind2 = (start_net_ind[0], start_net_ind[1] + 1)
 
-            signal_type = topology_table[1][1]
-            #####################################################
-            table1 = active_sheet.range(result_ind1).expand('table').value
-            if type(table1[0]) == type(u''):
-                table1 = [table1]
-            ########################################################
-            start_sch_list = [tt[0] for tt in table1]
-            end_sch_list = [tt[1] for tt in table1]
-            start_net_list = [tt[2] for tt in table1]
+                    for idxx in xrange(len(topology_table)):
+                        # print(topology_table)
+                        row_tmp = topology_table[idxx]
+                        if 'Start Segment Name' in row_tmp:
+                            segment_list = topology_table[idxx][3::]
+                            segment_list = [x for x in segment_list if x not in ['', None]]
+                            result_idx = segment_list.index('Result')
+                            # ##print(result_idx)
+                        elif 'Layer' in topology_table[idxx]:
+                            layer_list = []
+                            for x in topology_table[idxx][3::]:
+                                layer_list.append(str(x))
+                            layer_list = layer_list[0:result_idx + 1]
+                            layer_list = [x.split('/') for x in layer_list]
+                            # ##print(layer_list)
+                        elif 'Layer Change' in topology_table[idxx]:
+                            layer_change_list = []
+                            for x in topology_table[idxx][3::]:
+                                layer_change_list.append(str(x))
+                            layer_change_list = layer_change_list[0:result_idx + 1]
+                        elif 'Connect Component' in row_tmp:
+                            connect_sch_list = []
+                            for x in topology_table[idxx][3::]:
+                                connect_sch_list.append(str(x))
+                            connect_sch_list = connect_sch_list[0:result_idx + 1]
+                        elif 'Cross Over' in row_tmp:
+                            cross_over_list = []
+                            for x in topology_table[idxx][3::]:
+                                cross_over_list.append(str(x))
+                            cross_over_list = cross_over_list[0:result_idx + 1]
+                        elif 'Trace Width' in topology_table[idxx]:
+                            trace_width_list = []
+                            for x in topology_table[idxx][3::]:
+                                trace_width_list.append(str(x))
+                            trace_width_list = trace_width_list[0:result_idx + 1]
+                            for idx in xrange(len(trace_width_list)):
+                                # 得到的数都为浮点数
+                                tw = trace_width_list[idx]
+                                # 数据为浮点数时，如3.5，或者有 / 时（差分信号）
+                                if isfloat(trace_width_list[idx]) or tw.find('/') > -1:
+                                    trace_width_list[idx] = ['%.3f' % float(x) for x in
+                                                             trace_width_list[idx].split('/')]
+                        elif 'Space' in row_tmp:
+                            space_list = []
+                            for x in topology_table[idxx][3::]:
+                                space_list.append(str(x))
+                            space_list = space_list[0:result_idx + 1]
+                        elif 'Min' in row_tmp:
+                            spec_min_list = []
+                            for x in topology_table[idxx][3::]:
+                                spec_min_list.append(str(x))
+                            spec_min_list = spec_min_list[0:result_idx + 1]
+                        elif 'Max' in row_tmp:
+                            spec_max_list = []
+                            for x in topology_table[idxx][3::]:
+                                spec_max_list.append(str(x))
+                            spec_max_list = spec_max_list[0:result_idx + 1]
 
-            # Check ignore syntax to skip specified segment check
-            ignore_segment_dict = dict()
-            start_net_list = list(start_net_list)
-            for idx in xrange(len(start_net_list)):
-                net_name = start_net_list[idx]
-                # !代表什么
-                if net_name.find('!') > -1:
-                    ignore_segment_list = start_net_list[idx].split('!')[1::]
-                    start_net_list[idx] = start_net_list[idx].split('!')[0]
-                    ignore_segment_dict[
-                        (start_sch_list[idx], start_net_list[idx], end_sch_list[idx])] = ignore_segment_list
-                else:
-                    ignore_segment_dict[(start_sch_list[idx], start_net_list[idx], end_sch_list[idx])] = []
+                    signal_type = topology_table[1][1]
+                    #####################################################
+                    table1 = active_sheet.range(result_ind1).expand('table').value
+                    if type(table1[0]) == type(u''):
+                        table1 = [table1]
+                    ########################################################
+                    start_sch_list = [tt[0] for tt in table1]
+                    end_sch_list = [tt[1] for tt in table1]
+                    start_net_list = [tt[2] for tt in table1]
 
-            start_net_list = tuple(start_net_list)
+                    # Check ignore syntax to skip specified segment check
+                    ignore_segment_dict = dict()
+                    start_net_list = list(start_net_list)
+                    for idx in xrange(len(start_net_list)):
+                        net_name = start_net_list[idx]
+                        # !代表什么
+                        if net_name.find('!') > -1:
+                            ignore_segment_list = start_net_list[idx].split('!')[1::]
+                            start_net_list[idx] = start_net_list[idx].split('!')[0]
+                            ignore_segment_dict[
+                                (start_sch_list[idx], start_net_list[idx], end_sch_list[idx])] = ignore_segment_list
+                        else:
+                            ignore_segment_dict[(start_sch_list[idx], start_net_list[idx], end_sch_list[idx])] = []
 
-            layer_mismatch, segment_mismatch, bundle_mismatch, total_mismatch, DQS_TO_DQS_mismatch \
-                = False, False, False, False, False
-            DQ_TO_DQ_mismatch, DQ_TO_DQS_mismatch, CMD_mismatch, CTL_mismatch, DLL_mismatch \
-                = False, False, False, False, False
-            if signal_type == 'Differential':
-                act_sheet = wb.sheets['ACT_diff']
-                if 'Layer Mismatch' in segment_list:
-                    layer_mismatch = True
-                if 'Segment Mismatch' in segment_list:
-                    segment_mismatch = True
-                if 'Skew to Bundle' in segment_list:
-                    bundle_mismatch = True
-                if 'Total Mismatch' in segment_list:
-                    total_mismatch = True
-                if 'Relative Length Spec(DQS to DQS)' in segment_list:
-                    DQS_TO_DQS_mismatch = True
-            elif signal_type == 'Single-ended':
-                act_sheet = wb.sheets['ACT_se']
-                if 'Relative Length Spec(DQ to DQ)' in segment_list:
-                    DQ_TO_DQ_mismatch = True
-                if 'Relative Length Spec(DQ to DQS)' in segment_list:
-                    DQ_TO_DQS_mismatch = True
-                if 'CMD or ADD to CLK Length Matching' in segment_list:
-                    CMD_mismatch = True
-                if 'CTL to CLK Length Matching' in segment_list:
-                    CTL_mismatch = True
-                if 'DLL Group Length Matching' in segment_list:
-                    DLL_mismatch = True
+                    start_net_list = tuple(start_net_list)
 
-            act_content = act_sheet.range('A1').current_region.value
-            # ##print(act_content)
-            act_data_dict = dict()
-            stub_value = []
-            for idx123 in xrange(len(start_sch_list)):
-                for line in act_content:
-                    if start_sch_list[idx123] == line[0] and end_sch_list[idx123] == line[2] and start_net_list[idx123] == line[1]:
-                        if act_data_dict.get(
-                                (start_sch_list[idx123], start_net_list[idx123], end_sch_list[idx123])) == None:
-                            # ##print((start_sch_list[idx123], start_net_list[idx123], end_sch_list[idx123]))
-                            act_data_dict[
-                                ((start_sch_list[idx123], start_net_list[idx123], end_sch_list[idx123]), 'via')] = \
-                                line[3]
-                            act_data_dict[
-                                ((start_sch_list[idx123], start_net_list[idx123], end_sch_list[idx123]),
-                                 'total_length')] = line[4].split()[1]
-                            act_data_dict[(start_sch_list[idx123], start_net_list[idx123], end_sch_list[idx123])] = [x for x in line[5::] if x not in ['',None]]
+                    layer_mismatch, segment_mismatch, bundle_mismatch, total_mismatch, DQS_TO_DQS_mismatch \
+                        = False, False, False, False, False
+                    DQ_TO_DQ_mismatch, DQ_TO_DQS_mismatch, CMD_mismatch, CTL_mismatch, DLL_mismatch \
+                        = False, False, False, False, False
+                    if signal_type == 'Differential':
+                        act_sheet = wb.sheets['ACT_diff']
+                        if 'Layer Mismatch' in segment_list:
+                            layer_mismatch = True
+                        if 'Segment Mismatch' in segment_list:
+                            segment_mismatch = True
+                        if 'Skew to Bundle' in segment_list:
+                            bundle_mismatch = True
+                        if 'Total Mismatch' in segment_list:
+                            total_mismatch = True
+                        if 'Relative Length Spec(DQS to DQS)' in segment_list:
+                            DQS_TO_DQS_mismatch = True
+                    elif signal_type == 'Single-ended':
+                        act_sheet = wb.sheets['ACT_se']
+                        if 'Relative Length Spec(DQ to DQ)' in segment_list:
+                            DQ_TO_DQ_mismatch = True
+                        if 'Relative Length Spec(DQ to DQS)' in segment_list:
+                            DQ_TO_DQS_mismatch = True
+                        if 'CMD or ADD to CLK Length Matching' in segment_list:
+                            CMD_mismatch = True
+                        if 'CTL to CLK Length Matching' in segment_list:
+                            CTL_mismatch = True
+                        if 'DLL Group Length Matching' in segment_list:
+                            DLL_mismatch = True
 
-                            # 通过过孔via数目判断是否有stub
-                            # 对data数据进行处理
-                            net_data = act_data_dict[
-                                (start_sch_list[idx123], start_net_list[idx123], end_sch_list[idx123])]
+                    act_content = act_sheet.range('A1').current_region.value  # net name 所有信息
+                    # print(act_content)
+                    act_data_dict = dict()
+                    stub_value = []
+                    for idx123 in xrange(len(start_sch_list)):
+                        for line in act_content:
+                            if start_sch_list[idx123] == line[0] and end_sch_list[idx123] == line[2] and start_net_list[
+                                idx123] == line[1]:
+                                if act_data_dict.get(
+                                        (start_sch_list[idx123], start_net_list[idx123], end_sch_list[idx123])) == None:
+                                    # ##print((start_sch_list[idx123], start_net_list[idx123], end_sch_list[idx123]))
+                                    act_data_dict[
+                                        ((start_sch_list[idx123], start_net_list[idx123], end_sch_list[idx123]),
+                                         'via')] = \
+                                        line[3]
+                                    act_data_dict[
+                                        ((start_sch_list[idx123], start_net_list[idx123], end_sch_list[idx123]),
+                                         'total_length')] = line[4].split()[1]
+                                    act_data_dict[
+                                        (start_sch_list[idx123], start_net_list[idx123], end_sch_list[idx123])] = [x for
+                                                                                                                   x in
+                                                                                                                   line[
+                                                                                                                   5::]
+                                                                                                                   if
+                                                                                                                   x not in [
+                                                                                                                       '',
+                                                                                                                       None]]
 
-                        if topology_table[0][1] and topology_table[0][1].upper() in ['LOW LOSS', 'MID LOSS']:
-                            if int(line[3].split()[1]) > 0:
-                                # # ##print(topology_table[0][1])
-                                stub_layer_list = []
-                                for idx in range(len(net_data)):
-                                    item = net_data[idx]
-                                    if str(item).find(":") > -1:
-                                        stub_layer_list += [x for x in item.split(':') if x in All_Layer_List]
-                                index_list = []
+                                    # 通过过孔via数目判断是否有stub
+                                    # 对data数据进行处理
+                                    net_data = act_data_dict[
+                                        (start_sch_list[idx123], start_net_list[idx123], end_sch_list[idx123])]
 
-                                for i in range(len(stub_layer_list)):
-                                    for j in range(len(layerLength_list)):
-                                        if stub_layer_list[i] == layerLength_list[j].keys()[0]:
-                                            # # ##print(j)  #具体走线层匹配的索引位置
-                                            # havingLength_layer_list.append({stub_layer_list[i]:layerLength_list[j].values()[0]}) #给对应层匹配相应的长度
-                                            index_list.append(j)
-                                new_index_list = []
-                                new_index_list = sorted(set(index_list))
-                                top_stub = bottom_stub = 0
+                                if topology_table[0][1] and topology_table[0][1].upper() in ['LOW LOSS', 'MID LOSS']:
+                                    if int(line[3].split()[1]) > 0:
+                                        # # ##print(topology_table[0][1])
+                                        stub_layer_list = []
+                                        for idx in range(len(net_data)):
+                                            item = net_data[idx]
+                                            if str(item).find(":") > -1:
+                                                stub_layer_list += [x for x in item.split(':') if x in All_Layer_List]
+                                        index_list = []
+                                        for i in range(len(stub_layer_list)):
+                                            for j in range(len(layerLength_list)):
+                                                if stub_layer_list[i] == layerLength_list[j].keys()[0]:
+                                                    # # ##print(j)  #具体走线层匹配的索引位置
+                                                    # havingLength_layer_list.append({stub_layer_list[i]:layerLength_list[j].values()[0]}) #给对应层匹配相应的长度
+                                                    index_list.append(j)
+                                        new_index_list = []
+                                        new_index_list = sorted(set(index_list))
+                                        top_stub = bottom_stub = 0
 
-                                try:
-                                    for top_idx in range(1, new_index_list[-2]):
-                                        # # ##print(layerLength_list[top_idx].values()[0])
-                                        top_stub += float(layerLength_list[top_idx].values()[0])
-                                except:
-                                    pass
+                                        try:
+                                            for top_idx in range(1, new_index_list[-2]):
+                                                # print(layerLength_list[top_idx].values()[0])
+                                                top_stub += float(layerLength_list[top_idx].values()[0])
+                                        except:
+                                            pass
 
-                                try:
-                                    for bot_idx in range(new_index_list[1] + 1, len(layerLength_list) - 1):
-                                        bottom_stub += float(layerLength_list[bot_idx].values()[0])
-                                except:
-                                    pass
+                                        try:
+                                            for bot_idx in range(new_index_list[1] + 1, len(layerLength_list) - 1):
+                                                bottom_stub += float(layerLength_list[bot_idx].values()[0])
+                                        except:
+                                            pass
 
-                                final_stub = round(max(top_stub, bottom_stub), 2)
-                                stub_value.append(final_stub)
+                                        final_stub = round(max(top_stub, bottom_stub), 2)
+                                        stub_value.append(final_stub)
+                                    else:
+                                        pass
+                    # print('act_data_dict',act_data_dict)
+                    if topology_table[0][1] and topology_table[0][1].upper() in ['LOW LOSS', 'MID LOSS']:
+                        # 获得当前的sheet名称
+                        active_sheet = wb.sheets.active
+                        PCIE_sheet = wb.sheets[active_sheet]
+                        for cell in PCIE_sheet.api.UsedRange.Cells:
+                            if cell.Value == 'Stub':
+                                Stub_ind = (cell.Row, cell.Column)
+                                break
+                        stub_table = active_sheet.range(Stub_ind).current_region.value
+                        # # ##print(stub_table)
+                        for idx in range(len(topology_table[2])):
+                            if topology_table[2][idx] == 'Total Length':
+                                len_idx = idx
+                                break
+                        if topology_table[0][1].upper() == 'LOW LOSS':
+                            if max(stub_value) > stub_table[1][0]:
+                                active_sheet.range(cell.Row[0] + 10, cell.Column[1] + len_idx).value = stub_table[2][2]
                             else:
+                                active_sheet.range(cell.Row[0] + 10, cell.Column[1] + len_idx).value = stub_table[1][2]
+
+                        elif topology_table[0][1].upper() == 'MID LOSS':
+                            if max(stub_value) > stub_table[1][0] and max(stub_value) < stub_table[2][0]:
+                                active_sheet.range(cell.Row[0] + 10, cell.Column[1] + len_idx).value = stub_table[2][1]
+                            else:
+                                active_sheet.range(cell.Row[0] + 10, cell.Column[1] + len_idx).value = stub_table[1][1]
+                    else:
+                        pass
+
+                    skew_to_target_mismatch = False
+                    segment_list = list(segment_list)
+                    target_list_all = list()
+                    # 对Skew to Target与Group Mismatch的情况进行讨论
+                    for idx in xrange(len(segment_list)):
+                        seg = segment_list[idx]
+                        if seg.find('Skew to Target') > -1:
+                            skew_to_target_mismatch = True
+                            target_list_all.append(segment_list[idx].split(':')[1::])
+                            target_list_all[-1] = [x[1:-1].split(',') for x in target_list_all[-1]]
+                            segment_list[idx] = 'Skew to Target'
+                    segment_list = tuple(segment_list)
+                    # Get the list of "Group Mismatch Target"
+                    group_mismatch = False
+                    topology_name_list_all = list()
+                    segment_list = list(segment_list)
+                    for idx in xrange(len(segment_list)):
+                        if segment_list[idx].find('Group Mismatch') > -1:
+                            group_mismatch = True
+                            topology_name_list_all.append(segment_list[idx].split(':')[1::])
+                            # # ##print(topology_name_list_all)
+                            segment_list[idx] = 'Group Mismatch'
+                    segment_list = tuple(segment_list)
+                    # ##print(segment_list)
+
+                    act_value_list = []
+                    all_result_list = []
+                    all_width_list = []
+                    all_layer_list = []
+                    for ind1 in xrange(len(start_sch_list)):
+                        if act_data_dict.get((start_sch_list[ind1], start_net_list[ind1], end_sch_list[ind1])):
+                            act_value_list.append(
+                                act_data_dict[(start_sch_list[ind1], start_net_list[ind1], end_sch_list[ind1])])
+                    for ind1 in xrange(len(act_value_list)):
+                        half_result_list = []
+                        half_width_list = []
+                        half_layer_list = []
+                        del_ind_list = []
+                        act_value = act_value_list[ind1]
+
+                        for ind2 in xrange(len(act_value)):
+                            if str(act_value[ind2]).find('net$') > -1:  # f7684584
+                                half_width_list.append(str(act_value[ind2]).split(':')[-1])
+                            # if str(act_value[ind2]).find(':') > -1 and isfloat(str(act_value[ind2]).split(':')[-1]) \
+                            #         or str(act_value[ind2]).find('net$') > -1:
+                            #     half_width_list.append(str(act_value[ind2]).split(':')[-1])
+
+                            if str(act_value[ind2]).find(':') > -1:
+                                for x in act_value[ind2].split(':'):
+                                    if x in All_Layer_List:
+                                        half_layer_list.append(x)
+
+                            if str(act_value[ind2]).find('net$') > -1:
+                                half_layer_list.append(act_value[ind2])
+
+                            if str(act_value[ind2]).find(':') > -1:  # f7684584
+                                for x in act_value[ind2].split(':'):
+                                    if isfloat(x):
+                                        half_width_list.append(x)
+                            # if str(act_value[ind2]).find(':') > -1 and isfloat(str(act_value[ind2]).split(':')[-2]):
+                            #     half_width_list.append(str(act_value[ind2]).split(':')[-2])
+
+                            if str(act_value[ind2]).find(':') == -1:
+                                half_result_list.append(act_value[ind2])
+
+                        all_result_list.append(half_result_list)
+                        all_width_list.append(half_width_list)
+                        all_layer_list.append(half_layer_list)
+
+                    if signal_type == 'Differential':
+                        if total_mismatch:
+                            act_data_dict = TotalMismatch(start_sch_list, start_net_list, end_sch_list, act_data_dict)
+                        if layer_mismatch:
+                            act_data_dict = LayerMismatch(start_sch_list, start_net_list, end_sch_list, act_data_dict)
+                        if bundle_mismatch:
+                            act_data_dict = Skew2BundleMismatch(4, start_sch_list, start_net_list, end_sch_list,
+                                                                act_data_dict)
+                        if DQS_TO_DQS_mismatch:
+                            act_data_dict = DQSDLLMismatch(start_sch_list, start_net_list, end_sch_list, act_data_dict)
+                        # if amd_lother_cap:
+                        #     act_data_dict = ForAMD_LOther(start_sch_list, start_net_list, end_sch_list, act_data_dict)
+                        # if amd_lother_via:
+                        #     act_data_dict = ForAMD_LOther(start_sch_list, start_net_list, end_sch_list, act_data_dict, CAP_type = 'PTH', Length_Type = 'Pin2Pin')
+                    else:
+                        if DQ_TO_DQ_mismatch:
+                            act_data_dict = DQTODQMismatch(start_sch_list, start_net_list, end_sch_list, act_data_dict)
+                        if DQ_TO_DQS_mismatch:
+                            act_data_dict = DQTODQSMismatch(start_sch_list, start_net_list, end_sch_list, act_data_dict)
+                        if CMD_mismatch:
+                            act_data_dict = CMDCTLMismatch(start_sch_list, start_net_list, end_sch_list, act_data_dict)
+                        if CTL_mismatch:
+                            act_data_dict = CMDCTLMismatch(start_sch_list, start_net_list, end_sch_list, act_data_dict,
+                                                           False)
+                        if DLL_mismatch:
+                            act_data_dict = DQSDLLMismatch(start_sch_list, start_net_list, end_sch_list, act_data_dict,
+                                                           False)
+                    if skew_to_target_mismatch:
+                        act_data_dict = Skew2TargetMismatch(start_sch_list, start_net_list, end_sch_list, act_data_dict,
+                                                            target_list_all, act_content)
+                    if group_mismatch:
+                        # 若无特殊情况 topology_name_list_all为空[]
+                        act_data_dict = GroupMismatch(topology_name_list_all, start_sch_list, start_net_list,
+                                                      end_sch_list,
+                                                      act_data_dict, act_content)
+
+                    act_data_layer_list = []
+                    result_dict = dict()
+                    check_length_seg_list = list()
+                    idx_all = -1
+                    segment_result_dict = {}
+                    real_segment_list = []
+                    # 分段索引
+                    segment_org_name_list = [str(x) for x in xrange(1, len(all_width_list[0]))]
+
+                    for id1 in xrange(len(start_sch_list)):
+                        idx_all += 1
+                        if act_data_dict.get((start_sch_list[id1], start_net_list[id1], end_sch_list[id1])) != None:
+                            result_list = list()
+                            segment_out_name_list = []
+                            act_data = act_data_dict[(start_sch_list[id1], start_net_list[id1], end_sch_list[id1])]
+                            act_data_layer_list.append(act_data)
+                            length_dict = dict()
+                            count1 = 0
+                            ignore_key1 = '$CN%d' % count1
+
+                            group_mismatch_count = 0
+                            skew2target_count = 0
+                            # # ##print('act_data', act_data)
+                            for idx1 in xrange(len(segment_list)):
+                                # # ##print('segment_list', segment_list[idx1])
+                                seg = segment_list[idx1]
+
+                                layer_change_count = 0
+                                cross_over_count = 0
+
+                                # Check Order trace width, connect sch, change layer
+                                check_length = False
+                                check_connect_sch = False
+                                check_layer_change = False
+                                check_layer_change_num = 1
+                                check_cross_over_num = 1
+                                check_cross_over = False
+                                # # ##print('trace_width_list', trace_width_list[idx1])
+
+                                # 如果有trace width才去check
+                                # # ##print('trace_width_list[idx1]', trace_width_list[idx1])
+                                connect_sch_spec = ''
+                                #
+                                if type(trace_width_list[idx1]) == type([]):
+                                    check_length = True
+                                    # # ##print('trace_width_list[idx1]', trace_width_list[idx1])
+                                    spec_trace_width_list = trace_width_list[idx1]
+                                    spec_layer_type_list = layer_list[idx1]
+
+                                    try:
+                                        # # ##print('connect_sch_list[idx1]', connect_sch_list[idx1])
+                                        if connect_sch_list[idx1] not in ['N', 'NA', 'None', 'All',
+                                                                          'Connect Component']:
+                                            check_connect_sch = True
+                                            connect_sch_spec = connect_sch_list[idx1]
+                                    except:
+                                        pass
+
+                                    try:  # f7684584
+                                        if cross_over_list[idx1] == 'Y':
+                                            check_cross_over = True
+                                        elif re.findall('^Y\d$', cross_over_list[idx1]) != []:
+                                            check_cross_over = True
+                                            check_cross_over_num = int(re.findall('^Y(\d)$', cross_over_list[idx1])[0])
+                                    except:
+                                        pass
+
+                                    try:
+                                        if layer_change_list[idx1] == 'Y':
+                                            check_layer_change = True
+                                        elif re.findall('^Y\d$', layer_change_list[idx1]) != []:
+                                            check_layer_change = True
+                                            check_layer_change_num = int(
+                                                re.findall('^Y(\d)$', layer_change_list[idx1])[0])
+                                    except:
+                                        pass
+
+                                if check_length:
+                                    # # ##print('check_connect_sch', check_connect_sch)
+                                    # # ##print('ok1')
+                                    check_length_seg_list.append(segment_list[idx1])
+                                    # # ##print(check_length_seg_list)
+                                    length = 0
+                                    segment_part_name = ''
+                                    end = False
+                                    check_layer_change_wrong = False
+                                    check_cross_over_wrong = False
+                                    while end is False:
+                                        # # ##print(segment_list[idx1])
+                                        # # ##print(ignore_segment_dict[(start_sch_list[id1], start_net_list[id1], end_sch_list[id1])])
+                                        # 没有发现！符号，都为空
+                                        if segment_list[idx1] in ignore_segment_dict[
+                                            (start_sch_list[id1], start_net_list[id1], end_sch_list[id1])]:
+                                            result_list.append(0)
+                                            break
+                                        # 不知ignore_key1有何作用
+                                        if ignore_key1 in ignore_segment_dict[
+                                            (start_sch_list[id1], start_net_list[id1],
+                                             end_sch_list[id1])] or act_data == []:
+                                            result_list.append('NA')
+                                            break
+                                        # # ##print(act_data)
+                                        for idx2 in xrange(len(act_data)):
+                                            # # ##print('ok2')
+                                            # # ##print(1, act_data)
+                                            # # ##print('act_data', act_data)
+                                            act_seg = act_data[idx2]
+                                            # # ##print('act_seg', act_seg)
+                                            if act_data[idx2].find(':') > -1:
+                                                # # ##print('ok3')
+                                                # # ##print(act_data[idx2])
+
+                                                # 实际的 trace width 和实际的 layer
+                                                trace_width = \
+                                                    ['%.3f' % float(x) for x in act_data[idx2].split(':') if
+                                                     isfloat(x)][
+                                                        0]
+                                                # # ##print(4, trace_width)
+                                                layer = [x for x in act_data[idx2].split(':') if x in All_Layer_List][0]
+                                                layer_type = layer_type_dict[layer]
+
+                                                if trace_width in spec_trace_width_list and layer_type in spec_layer_type_list:
+                                                    length += float('%.3f' % act_data[idx2 + 1])
+                                                    try:
+                                                        segment_part_name += segment_org_name_list[idx2]
+                                                        # segment_org_name_list = segment_org_name_list[idx2 + 1:]
+                                                    except:
+                                                        pass
+                                                    act_data = act_data[idx2 + 2::]
+
+                                                    if check_connect_sch:
+                                                        if connect_sch_spec == 'Y':  # check any connect sch
+                                                            if act_data[idx2].split(':')[-1].find('[') == 0:
+                                                                end = True
+                                                                connect_sch_spec = ''
+                                                                break
+                                                        else:  # check specific connect sch with the keyword of sch name
+                                                            if connect_sch_spec.find('/') > -1:
+                                                                connect_sch_spec_list = connect_sch_spec.split('/')
+                                                                for sch_tmp1 in connect_sch_spec_list:
+                                                                    if sch_tmp1.find('-') > -1:
+                                                                        if '[%s]' % sch_tmp1 == \
+                                                                                act_data[idx2].split(':')[-1]:
+                                                                            end = True
+                                                                            break
+                                                                    else:
+                                                                        if act_seg.split(':')[-1].find(sch_tmp1) > -1:
+                                                                            end = True
+                                                                            break
+                                                            else:
+                                                                if connect_sch_spec.find('-') > -1:
+                                                                    if '[%s]' % connect_sch_spec == \
+                                                                            act_data[idx2].split(':')[
+                                                                                -1]:
+                                                                        end = True
+                                                                        break
+                                                                else:
+                                                                    if act_seg.split(':')[-1].find(
+                                                                            connect_sch_spec) > -1:
+                                                                        end = True
+                                                                        break
+
+                                                    if check_layer_change:
+
+                                                        try:
+                                                            act_seg_next = act_data[0]
+
+                                                            if str(act_seg_next).find('net$') > -1:
+                                                                end = True
+                                                                break
+
+                                                            layer_next = \
+                                                                [x for x in act_seg_next.split(':') if
+                                                                 x in All_Layer_List][0]
+                                                            if layer != layer_next:
+                                                                layer_change_count += 1
+                                                                if layer_change_count == check_layer_change_num:
+                                                                    end = True
+                                                                    break
+                                                        except:
+                                                            if act_data != []:
+                                                                # 表示抓到下一段net(net name改變), 需示警
+                                                                result_list.append('Warning!')
+                                                                check_layer_change_wrong = True
+                                                                end = True
+                                                                break
+
+                                                    if check_cross_over:
+                                                        try:
+                                                            act_seg_next = act_data[0]
+                                                            if 'CROSS$' in act_seg_next.split(':'):  # f7684584
+                                                                cross_over_count += 1
+                                                                if cross_over_count == check_cross_over_num:
+                                                                    end = True
+                                                                    break
+
+                                                        except:
+                                                            if act_data != []:
+                                                                result_list.append('Warning!')
+                                                                check_cross_over_wrong = True
+                                                                end = True
+                                                                break
+
+                                                else:  # trace width not match, jump to next spec of topology segment
+                                                    end = True
+
+                                                break
+                                            elif act_seg.find('net$') > -1:
+                                                end = True
+                                                break
+                                        if act_data == []:
+                                            end = True
+                                        if end and not check_layer_change_wrong and not check_cross_over_wrong:
+                                            length_dict[seg] = float('%.3f' % length)
+                                            result_list.append(float('%.3f' % length))
+                                            if segment_part_name != '':
+                                                segment_out_name_list.append(segment_part_name)
+                                else:
+
+                                    if segment_list[idx1] == 'Component Name':
+                                        count1 += 1
+                                        ignore_key1 = '$CN%d' % count1
+
+                                        if len(act_data) > 0 and ignore_key1 not in ignore_segment_dict[
+                                            (start_sch_list[id1], start_net_list[id1], end_sch_list[id1])] and act_data[
+                                            0].find(
+                                            'net$') > -1:
+
+                                            result_list.append(act_data[1].split(':')[0][1:-1])
+                                            # # ##print(1, result_list)
+                                            result_list.append(act_data[0][4::])
+                                            # # ##print(2, result_list)
+                                            act_data = act_data[1::]
+                                        else:
+                                            result_list.append('NA')
+                                            result_list.append('NA')
+
+                                    elif seg == 'Total Length':
+                                        result_list.append(act_data_dict[(
+                                            (start_sch_list[id1], start_net_list[id1], end_sch_list[id1]),
+                                            'total_length')])
+
+                                    elif segment_list[idx1] == 'Via Count':
+                                        result_list.append(act_data_dict[(
+                                            (start_sch_list[id1], start_net_list[id1], end_sch_list[id1]),
+                                            'via')].split()[1])
+                                    elif re.findall(r'\+|\-|\*|\/', seg) != []:
+                                        if seg not in ignore_segment_dict[
+                                            (start_sch_list[id1], start_net_list[id1], end_sch_list[id1])]:
+                                            sub_seg_list = re.split(r'\+|\-|\*|\/|\(|\)', segment_list[idx1])
+                                            sub_seg_list = [x for x in sub_seg_list if x != '']
+                                            seg_tmp = str(seg)
+
+                                            sub_seg_len_list = []
+                                            for x in sub_seg_list:
+                                                sub_seg_len_list.append(length_dict.get(x, 0))
+
+                                            for id_sub in xrange(len(sub_seg_list)):
+                                                try:
+                                                    float(sub_seg_list[id_sub])
+                                                except ValueError:
+                                                    seg_tmp = seg_tmp.replace(sub_seg_list[id_sub],
+                                                                              str(float(sub_seg_len_list[id_sub])))
+
+                                            result_list.append(eval(seg_tmp))
+
+                                        else:
+                                            result_list.append('NA')
+                                    elif seg == 'Total Mismatch':
+                                        result_list.append(act_data_dict[(
+                                            (start_sch_list[id1], start_net_list[id1], end_sch_list[id1]),
+                                            'total_mismatch')])
+                                    elif segment_list[idx1] == 'Layer Mismatch':
+                                        result_list.append(act_data_dict[(
+                                            (start_sch_list[id1], start_net_list[id1], end_sch_list[id1]),
+                                            'layer_mismatch')])
+                                    elif segment_list[idx1] == 'Skew to Bundle':
+                                        result_list.append(act_data_dict[(
+                                            (start_sch_list[id1], start_net_list[id1], end_sch_list[id1]),
+                                            'bundle_mismatch')])
+                                    elif seg == 'Skew to Target':
+
+                                        if '$SK2T' not in ignore_segment_dict[
+                                            (start_sch_list[id1], start_net_list[id1],
+                                             end_sch_list[id1])] and '$SK2T%d' % (
+                                                skew2target_count + 1) not in ignore_segment_dict[
+                                            (start_sch_list[id1], start_net_list[id1], end_sch_list[id1])]:
+                                            if target_list_all != []:
+                                                result_list.append(act_data_dict[(
+                                                    (start_sch_list[id1], start_net_list[id1], end_sch_list[id1]),
+                                                    'skew2target%d' % skew2target_count)])
+                                            else:
+                                                result_list.append('NA')
+                                        else:
+                                            result_list.append('NA')
+
+                                        skew2target_count += 1
+
+                                    elif segment_list[idx1] == 'Group Mismatch':
+                                        if '$GM' not in ignore_segment_dict[
+                                            (start_sch_list[id1], start_net_list[id1],
+                                             end_sch_list[id1])] and '$GM%d' % (
+                                                group_mismatch_count + 1) not in ignore_segment_dict[
+                                            (start_sch_list[id1], start_net_list[id1], end_sch_list[id1])]:
+                                            if topology_name_list_all != []:
+                                                result_list.append(act_data_dict[(
+                                                    (start_sch_list[id1], start_net_list[id1], end_sch_list[id1]),
+                                                    'group_mismatch%d' % group_mismatch_count)])
+                                            else:
+                                                result_list.append('NA')
+                                        else:
+                                            result_list.append('NA')
+                                        group_mismatch_count += 1
+
+                                    elif segment_list[idx1] == 'Relative Length Spec(DQS to DQS)':
+                                        result_list.append(act_data_dict[((start_sch_list[id1], start_net_list[id1],
+                                                                           end_sch_list[id1]), 'DQS_TO_DQS')])
+                                    elif segment_list[idx1] == 'Relative Length Spec(DQ to DQ)':
+                                        result_list.append(act_data_dict[((start_sch_list[id1], start_net_list[id1],
+                                                                           end_sch_list[id1]), 'DQ_TO_DQ')])
+                                    elif segment_list[idx1] == 'Relative Length Spec(DQ to DQS)':
+                                        result_list.append(act_data_dict[((start_sch_list[id1], start_net_list[id1],
+                                                                           end_sch_list[id1]), 'DQ_TO_DQS')])
+                                    elif segment_list[idx1] == 'CMD or ADD to CLK Length Matching':
+                                        result_list.append(act_data_dict[((start_sch_list[id1], start_net_list[id1],
+                                                                           end_sch_list[id1]), 'CMD_TO_CLK')])
+                                    elif segment_list[idx1] == 'CTL to CLK Length Matching':
+                                        result_list.append(act_data_dict[((start_sch_list[id1], start_net_list[id1],
+                                                                           end_sch_list[id1]), 'CTL_TO_CLK')])
+                                    elif segment_list[idx1] == 'DLL Group Length Matching':
+                                        result_list.append(act_data_dict[((start_sch_list[id1], start_net_list[id1],
+                                                                           end_sch_list[id1]), 'DLL_Group')])
+                                    elif segment_list[idx1] == 'Result':
+                                        cal_title_list = ['Total Mismatch', 'Layer Mismatch', 'Total Length',
+                                                          'Via Count',
+                                                          'Result',
+                                                          'Segment Mismatch', 'Skew to Bundle', 'Skew to Target',
+                                                          'Group Mismatch',
+                                                          'Relative Length Spec(DQS to DQS)',
+                                                          'Relative Length Spec(DQ to DQ)',
+                                                          'Relative Length Spec(DQ to DQS)',
+                                                          'CMD or ADD to CLK Length Matching',
+                                                          'CTL to CLK Length Matching', 'DLL Group Length Matching']
+
+                                        total_length_tmp = [result_list[idx_tmp] for idx_tmp in
+                                                            xrange(len(segment_list)) if
+                                                            segment_list[idx_tmp].find('+') == -1 and segment_list[
+                                                                idx_tmp] not in cal_title_list]
+                                        total_length_tmp = sum([float(x) for x in total_length_tmp if isfloat(x)])
+
+                                        if abs(float(
+                                                act_data_dict[
+                                                    ((start_sch_list[id1], start_net_list[id1], end_sch_list[id1]),
+                                                     'total_length')]) - total_length_tmp) < 0.01:
+                                            result_list.append('Setting OK')
+                                        else:
+                                            result_list.append('Something Wrong')
+                                    elif seg in ['Segment Name', 'Start Segment Name']:
+                                        pass
+                                    else:
+                                        result_list.append('NA')
+                            result_dict[(start_sch_list[id1], start_net_list[id1], end_sch_list[id1])] = result_list
+                        else:
+                            result_dict[(start_sch_list[id1], start_net_list[id1], end_sch_list[id1])] = ['NA'] * len(
+                                segment_list)
+
+                    if segment_mismatch:
+                        result_dict, color_ind_list = SegmentMismatch(start_sch_list, start_net_list, end_sch_list,
+                                                                      result_dict,
+                                                                      all_width_list, all_layer_list, all_result_list,
+                                                                      segment_out_name_list)
+
+                    idx1 = -1
+
+                    for idb in xrange(len(start_sch_list)):
+                        idx1 += 1
+                        SetCellBorder(active_sheet, (result_ind2[0] + idx1, result_ind2[1] - 3))
+                        SetCellBorder(active_sheet, (result_ind2[0] + idx1, result_ind2[1] - 2))
+                        SetCellBorder(active_sheet, (result_ind2[0] + idx1, result_ind2[1] - 1))
+                        if result_dict.get((start_sch_list[idb], start_net_list[idb], end_sch_list[idb])) != None:
+                            for idx2 in xrange(
+                                    len(result_dict[(start_sch_list[idb], start_net_list[idb], end_sch_list[idb])])):
+                                active_sheet.range((result_ind2[0] + idx1, result_ind2[1] + idx2)).value = \
+                                    result_dict[(start_sch_list[idb], start_net_list[idb], end_sch_list[idb])][idx2]
+                    if segment_mismatch:
+                        for ind in xrange(len(start_sch_list) / 2):
+                            # 判断颜色
+                            try:
+                                if color_ind_list[ind] == 0:
+                                    active_sheet.range(
+                                        (start_ind[0] + 12 + ind * 2,
+                                         start_ind[1] + se1_ind)).api.Interior.ColorIndex = 4
+                                    active_sheet.range(
+                                        (start_ind[0] + 13 + ind * 2,
+                                         start_ind[1] + se1_ind)).api.Interior.ColorIndex = 4
+                                elif color_ind_list[ind] == 1:
+                                    active_sheet.range(
+                                        (start_ind[0] + 12 + ind * 2,
+                                         start_ind[1] + se1_ind)).api.Interior.ColorIndex = 3
+                                    active_sheet.range(
+                                        (start_ind[0] + 13 + ind * 2,
+                                         start_ind[1] + se1_ind)).api.Interior.ColorIndex = 3
+                            except:
                                 pass
 
-            if topology_table[0][1] and topology_table[0][1].upper() in ['LOW LOSS', 'MID LOSS']:
-                # 获得当前的sheet名称
-                active_sheet = wb.sheets.active
-                PCIE_sheet = wb.sheets[active_sheet]
-                for cell in PCIE_sheet.api.UsedRange.Cells:
-                    if cell.Value == 'Stub':
-                        Stub_ind = (cell.Row, cell.Column)
-                        break
-                stub_table = active_sheet.range(Stub_ind).current_region.value
-                # # ##print(stub_table)
-                for idx in range(len(topology_table[2])):
-                    if topology_table[2][idx] == 'Total Length':
-                        len_idx = idx
-                        break
-                if topology_table[0][1].upper() == 'LOW LOSS':
+                    for idxx in xrange(len(topology_table)):
+                        row_tmp = topology_table[idxx]
+                        if 'Start Segment Name' in row_tmp:
+                            segment_list = topology_table[idxx][3::]
+                            segment_list = [x for x in segment_list if x not in ['', None]]
+                            result_idx = segment_list.index('Result')
+                        elif 'Min' in topology_table[idxx]:
+                            spec_min_list = [str(x) for x in topology_table[idxx][3::]]
+                            spec_min_list = spec_min_list[0:result_idx + 1]
+                        elif 'Max' in row_tmp:
+                            spec_max_list = [str(x) for x in topology_table[idxx][3::]]
+                            spec_max_list = spec_max_list[0:result_idx + 1]
+                    len1 = len(active_sheet.range(result_ind1).options(expand='table', ndim=2).value)
 
-                    if max(stub_value) > stub_table[1][0]:
+                    for idx1 in xrange(len1):
+                        result_cell_idx = (result_ind2[0] + idx1, result_ind2[1] + result_idx)
+                        if active_sheet.range(result_cell_idx).value != 'Something Wrong':
+                            active_sheet.range(result_cell_idx).api.Interior.ColorIndex = 4
+                            active_sheet.range(result_cell_idx).value = 'Pass'
+                        elif active_sheet.range(result_cell_idx).value == 'Something Wrong':
+                            active_sheet.range(result_cell_idx).api.Interior.ColorIndex = 3
+                    # for idx1 in xrange(int(len1 / 2)):
+                    #     result_cell_idx1 = (result_ind2[0] + idx1 * 2, result_ind2[1] + result_idx)
+                    #     result_cell_idx2 = (result_ind2[0] + idx1 * 2 + 1, result_ind2[1] + result_idx)
+                    #     if active_sheet.range(result_cell_idx1).value != 'Something Wrong' and \
+                    #             active_sheet.range(result_cell_idx2).value != 'Something Wrong':
+                    #         if color_ind_list != []:
+                    #             if color_ind_list[idx1] == 1:
+                    #                 active_sheet.range(result_cell_idx1).value = 'Fail'
+                    #                 active_sheet.range(result_cell_idx2).value = 'Fail'
+                    #                 active_sheet.range(result_cell_idx1).api.Interior.ColorIndex = 3
+                    #                 active_sheet.range(result_cell_idx2).api.Interior.ColorIndex = 3
 
-                        active_sheet.range(start_ind[0] + 10, start_ind[1] + len_idx).value = stub_table[2][2]
-                    else:
-                        active_sheet.range(start_ind[0] + 10, start_ind[1] + len_idx).value = stub_table[1][2]
-
-                elif topology_table[0][1].upper() == 'MID LOSS':
-                    if max(stub_value) > stub_table[1][0] and max(stub_value) < stub_table[2][0]:
-                        active_sheet.range(start_ind[0] + 10, start_ind[1] + len_idx).value = stub_table[2][1]
-                    else:
-                        active_sheet.range(start_ind[0] + 10, start_ind[1] + len_idx).value = stub_table[1][1]
-            else:
-                pass
-
-            skew_to_target_mismatch = False
-            segment_list = list(segment_list)
-            target_list_all = list()
-            # 对Skew to Target与Group Mismatch的情况进行讨论
-            for idx in xrange(len(segment_list)):
-                seg = segment_list[idx]
-                if seg.find('Skew to Target') > -1:
-                    skew_to_target_mismatch = True
-                    target_list_all.append(segment_list[idx].split(':')[1::])
-                    target_list_all[-1] = [x[1:-1].split(',') for x in target_list_all[-1]]
-                    segment_list[idx] = 'Skew to Target'
-            segment_list = tuple(segment_list)
-            # Get the list of "Group Mismatch Target"
-            group_mismatch = False
-            topology_name_list_all = list()
-            segment_list = list(segment_list)
-            for idx in xrange(len(segment_list)):
-                if segment_list[idx].find('Group Mismatch') > -1:
-                    group_mismatch = True
-                    topology_name_list_all.append(segment_list[idx].split(':')[1::])
-                    # # ##print(topology_name_list_all)
-                    segment_list[idx] = 'Group Mismatch'
-            segment_list = tuple(segment_list)
-            # ##print(segment_list)
-
-            act_value_list = []
-            all_result_list = []
-            all_width_list = []
-            all_layer_list = []
-            for ind1 in xrange(len(start_sch_list)):
-                if act_data_dict.get((start_sch_list[ind1], start_net_list[ind1], end_sch_list[ind1])):
-                    act_value_list.append(
-                        act_data_dict[(start_sch_list[ind1], start_net_list[ind1], end_sch_list[ind1])])
-            for ind1 in xrange(len(act_value_list)):
-                half_result_list = []
-                half_width_list = []
-                half_layer_list = []
-                del_ind_list = []
-                act_value = act_value_list[ind1]
-
-                for ind2 in xrange(len(act_value)):
-                    if str(act_value[ind2]).find(':') > -1 and isfloat(str(act_value[ind2]).split(':')[-1]) \
-                            or str(act_value[ind2]).find('net$') > -1:
-                        half_width_list.append(str(act_value[ind2]).split(':')[-1])
-
-                    if str(act_value[ind2]).find(':') > -1:
-                        for x in act_value[ind2].split(':'):
-                            if x in All_Layer_List:
-                                half_layer_list.append(x)
-
-                    if str(act_value[ind2]).find('net$') > -1:
-                        half_layer_list.append(act_value[ind2])
-
-                    if str(act_value[ind2]).find(':') > -1 and isfloat(str(act_value[ind2]).split(':')[-2]):
-                        half_width_list.append(str(act_value[ind2]).split(':')[-2])
-
-                    if str(act_value[ind2]).find(':') == -1:
-                        half_result_list.append(act_value[ind2])
-                all_result_list.append(half_result_list)
-                all_width_list.append(half_width_list)
-                all_layer_list.append(half_layer_list)
-
-            if signal_type == 'Differential':
-                if total_mismatch:
-                    act_data_dict = TotalMismatch(start_sch_list, start_net_list, end_sch_list, act_data_dict)
-                if layer_mismatch:
-                    act_data_dict = LayerMismatch(start_sch_list, start_net_list, end_sch_list, act_data_dict)
-                if bundle_mismatch:
-                    act_data_dict = Skew2BundleMismatch(4, start_sch_list, start_net_list, end_sch_list, act_data_dict)
-                if DQS_TO_DQS_mismatch:
-                    act_data_dict = DQSDLLMismatch(start_sch_list, start_net_list, end_sch_list, act_data_dict)
-                # if amd_lother_cap:
-                #     act_data_dict = ForAMD_LOther(start_sch_list, start_net_list, end_sch_list, act_data_dict)
-                # if amd_lother_via:
-                #     act_data_dict = ForAMD_LOther(start_sch_list, start_net_list, end_sch_list, act_data_dict, CAP_type = 'PTH', Length_Type = 'Pin2Pin')
-            else:
-                if DQ_TO_DQ_mismatch:
-                    act_data_dict = DQTODQMismatch(start_sch_list, start_net_list, end_sch_list, act_data_dict)
-                if DQ_TO_DQS_mismatch:
-                    act_data_dict = DQTODQSMismatch(start_sch_list, start_net_list, end_sch_list, act_data_dict)
-                if CMD_mismatch:
-                    act_data_dict = CMDCTLMismatch(start_sch_list, start_net_list, end_sch_list, act_data_dict)
-                if CTL_mismatch:
-                    act_data_dict = CMDCTLMismatch(start_sch_list, start_net_list, end_sch_list, act_data_dict, False)
-                if DLL_mismatch:
-                    act_data_dict = DQSDLLMismatch(start_sch_list, start_net_list, end_sch_list, act_data_dict, False)
-            if skew_to_target_mismatch:
-                act_data_dict = Skew2TargetMismatch(start_sch_list, start_net_list, end_sch_list, act_data_dict,
-                                                    target_list_all, act_content)
-            if group_mismatch:
-                # 若无特殊情况 topology_name_list_all为空[]
-                act_data_dict = GroupMismatch(topology_name_list_all, start_sch_list, start_net_list, end_sch_list,
-                                              act_data_dict, act_content)
-
-            act_data_layer_list = []
-            result_dict = dict()
-            check_length_seg_list = list()
-            idx_all = -1
-            segment_result_dict = {}
-            real_segment_list = []
-            # 分段索引
-            segment_org_name_list = [str(x) for x in xrange(1, len(all_width_list[0]))]
-            # # ##print('segment_name_list', segment_org_name_list)
-
-            for id1 in xrange(len(start_sch_list)):
-                # ##print('start_sch_list', start_sch_list[id1])
-                idx_all += 1
-                if act_data_dict.get((start_sch_list[id1], start_net_list[id1], end_sch_list[id1])) != None:
-                    result_list = list()
-                    segment_out_name_list = []
-                    act_data = act_data_dict[(start_sch_list[id1], start_net_list[id1], end_sch_list[id1])]
-                    act_data_layer_list.append(act_data)
-                    length_dict = dict()
-                    count1 = 0
-                    ignore_key1 = '$CN%d' % count1
-
-                    group_mismatch_count = 0
-                    skew2target_count = 0
-                    # # ##print('act_data', act_data)
                     for idx1 in xrange(len(segment_list)):
-                        # # ##print('segment_list', segment_list[idx1])
-                        seg = segment_list[idx1]
+                        for idx2 in xrange(len1):
+                            spec_min = spec_min_list[idx1]
+                            spec_max = spec_max_list[idx1]
+                            result_cell_idx = (result_ind2[0] + idx2, result_ind2[1] + result_idx)
+                            if active_sheet.range(result_cell_idx).value != 'Something Wrong':
+                                if isfloat(active_sheet.range((result_ind2[0] + idx2, result_ind2[1] + idx1)).value):
+                                    if spec_min == 'NA' and isfloat(spec_max):
+                                        if float(active_sheet.range(
+                                                (result_ind2[0] + idx2, result_ind2[1] + idx1)).value) <= float(
+                                            spec_max):
+                                            active_sheet.range(
+                                                (result_ind2[0] + idx2,
+                                                 result_ind2[1] + idx1)).api.Interior.ColorIndex = 4
+                                        else:
+                                            active_sheet.range(
+                                                (result_ind2[0] + idx2,
+                                                 result_ind2[1] + idx1)).api.Interior.ColorIndex = 3
+                                            active_sheet.range(result_cell_idx).api.Interior.ColorIndex = 3
+                                            active_sheet.range(result_cell_idx).value = 'Fail'
+                                    elif isfloat(spec_min) and isfloat(spec_max):
+                                        if float(spec_min) <= float(
+                                                active_sheet.range(
+                                                    (result_ind2[0] + idx2, result_ind2[1] + idx1)).value) <= float(
+                                            spec_max):
+                                            active_sheet.range(
+                                                (result_ind2[0] + idx2,
+                                                 result_ind2[1] + idx1)).api.Interior.ColorIndex = 4
+                                        else:
+                                            active_sheet.range(
+                                                (result_ind2[0] + idx2,
+                                                 result_ind2[1] + idx1)).api.Interior.ColorIndex = 3
+                                            active_sheet.range(result_cell_idx).api.Interior.ColorIndex = 3
+                                            active_sheet.range(result_cell_idx).value = 'Fail'
+                                    elif isfloat(spec_min) and spec_max == 'NA':
+                                        if float(spec_min) <= float(
+                                                active_sheet.range(
+                                                    (result_ind2[0] + idx2, result_ind2[1] + idx1)).value):
+                                            active_sheet.range(
+                                                (result_ind2[0] + idx2,
+                                                 result_ind2[1] + idx1)).api.Interior.ColorIndex = 4
+                                        else:
+                                            active_sheet.range(
+                                                (result_ind2[0] + idx2,
+                                                 result_ind2[1] + idx1)).api.Interior.ColorIndex = 3
+                                            active_sheet.range(result_cell_idx).api.Interior.ColorIndex = 3
+                                            active_sheet.range(result_cell_idx).value = 'Fail'
 
-                        layer_change_count = 0
+                    SetCellFont_current_region(active_sheet, cell_idx, 'Times New Roman', 12, 'l')
+                    SetCellBorder_current_region(active_sheet, cell_idx)
+                    active_sheet.autofit('c')
+            else:
+                topology_table = active_sheet.range(cell_idx).current_region.value
+                for idx1 in xrange(len(topology_table)):
+                    line = topology_table[idx1]
+                    # print(line)
+                    for idx2 in xrange(len(line)):
+                        if line[idx2] == 'Net Name':
+                            spec_table_length = idx1 + 1
+                            break
+                start_sch_ind = (cell_idx[0] + spec_table_length, cell_idx[1])
+                end_sch_ind = (start_sch_ind[0], start_sch_ind[1] + 1)
+                start_net_ind = (end_sch_ind[0], end_sch_ind[1] + 1)
+                result_ind2 = (start_net_ind[0], start_net_ind[1] + 1)
+                active_sheet.range(result_ind2).expand('table').clear()
 
-                        # Check Order trace width, connect sch, change layer
-                        check_length = False
-                        check_connect_sch = False
-                        check_layer_change = False
-                        check_layer_change_num = 1
-                        check_cross_over = False
-                        # # ##print('trace_width_list', trace_width_list[idx1])
+                for se_ind in xrange(len(topology_table[2])):
+                    # 获取Segment Mismatch的管控条件
+                    if topology_table[2][se_ind] and topology_table[2][se_ind].find('Segment Mismatch') > -1:
+                        se1_ind = se_ind
+                for idx1 in xrange(len(topology_table)):
+                    line = topology_table[idx1]
+                    for idx2 in xrange(len(line)):
+                        if line[idx2] == 'Net Name':
+                            spec_table_length = idx1 + 1
+                            break
+                # ##print('spec_table_length',spec_table_length)
 
-                        # 如果有trace width才去check
-                        # # ##print('trace_width_list[idx1]', trace_width_list[idx1])
-                        connect_sch_spec = ''
-                        #
-                        if type(trace_width_list[idx1]) == type([]):
-                            check_length = True
+                # 获取坐标
+                start_sch_ind = (cell_idx[0] + spec_table_length, cell_idx[1])
+                end_sch_ind = (start_sch_ind[0], start_sch_ind[1] + 1)
+                start_net_ind = (end_sch_ind[0], end_sch_ind[1] + 1)
+                result_ind1 = (start_net_ind[0], start_net_ind[1] - 2)
+                result_ind2 = (start_net_ind[0], start_net_ind[1] + 1)
+
+                for idxx in xrange(len(topology_table)):
+                    # print(topology_table)
+                    row_tmp = topology_table[idxx]
+                    if 'Start Segment Name' in row_tmp:
+                        segment_list = topology_table[idxx][3::]
+                        segment_list = [x for x in segment_list if x not in ['', None]]
+                        result_idx = segment_list.index('Result')
+                        # ##print(result_idx)
+                    elif 'Layer' in topology_table[idxx]:
+                        layer_list = []
+                        for x in topology_table[idxx][3::]:
+                            layer_list.append(str(x))
+                        layer_list = layer_list[0:result_idx + 1]
+                        layer_list = [x.split('/') for x in layer_list]
+                        # ##print(layer_list)
+                    elif 'Layer Change' in topology_table[idxx]:
+                        layer_change_list = []
+                        for x in topology_table[idxx][3::]:
+                            layer_change_list.append(str(x))
+                        layer_change_list = layer_change_list[0:result_idx + 1]
+                    elif 'Connect Component' in row_tmp:
+                        connect_sch_list = []
+                        for x in topology_table[idxx][3::]:
+                            connect_sch_list.append(str(x))
+                        connect_sch_list = connect_sch_list[0:result_idx + 1]
+                    elif 'Cross Over' in row_tmp:
+                        cross_over_list = []
+                        for x in topology_table[idxx][3::]:
+                            cross_over_list.append(str(x))
+                        cross_over_list = cross_over_list[0:result_idx + 1]
+                    elif 'Trace Width' in topology_table[idxx]:
+                        trace_width_list = []
+                        for x in topology_table[idxx][3::]:
+                            trace_width_list.append(str(x))
+                        trace_width_list = trace_width_list[0:result_idx + 1]
+                        for idx in xrange(len(trace_width_list)):
+                            # 得到的数都为浮点数
+                            tw = trace_width_list[idx]
+                            # 数据为浮点数时，如3.5，或者有 / 时（差分信号）
+                            if isfloat(trace_width_list[idx]) or tw.find('/') > -1:
+                                trace_width_list[idx] = ['%.3f' % float(x) for x in trace_width_list[idx].split('/')]
+                    elif 'Space' in row_tmp:
+                        space_list = []
+                        for x in topology_table[idxx][3::]:
+                            space_list.append(str(x))
+                        space_list = space_list[0:result_idx + 1]
+                    elif 'Min' in row_tmp:
+                        spec_min_list = []
+                        for x in topology_table[idxx][3::]:
+                            spec_min_list.append(str(x))
+                        spec_min_list = spec_min_list[0:result_idx + 1]
+                    elif 'Max' in row_tmp:
+                        spec_max_list = []
+                        for x in topology_table[idxx][3::]:
+                            spec_max_list.append(str(x))
+                        spec_max_list = spec_max_list[0:result_idx + 1]
+
+                signal_type = topology_table[1][1]
+                #####################################################
+                table1 = active_sheet.range(result_ind1).expand('table').value
+                if type(table1[0]) == type(u''):
+                    table1 = [table1]
+                ########################################################
+                start_sch_list = [tt[0] for tt in table1]
+                end_sch_list = [tt[1] for tt in table1]
+                start_net_list = [tt[2] for tt in table1]
+
+                # Check ignore syntax to skip specified segment check
+                ignore_segment_dict = dict()
+                start_net_list = list(start_net_list)
+                for idx in xrange(len(start_net_list)):
+                    net_name = start_net_list[idx]
+                    # !代表什么
+                    if net_name.find('!') > -1:
+                        ignore_segment_list = start_net_list[idx].split('!')[1::]
+                        start_net_list[idx] = start_net_list[idx].split('!')[0]
+                        ignore_segment_dict[
+                            (start_sch_list[idx], start_net_list[idx], end_sch_list[idx])] = ignore_segment_list
+                    else:
+                        ignore_segment_dict[(start_sch_list[idx], start_net_list[idx], end_sch_list[idx])] = []
+
+                start_net_list = tuple(start_net_list)
+
+                layer_mismatch, segment_mismatch, bundle_mismatch, total_mismatch, DQS_TO_DQS_mismatch \
+                    = False, False, False, False, False
+                DQ_TO_DQ_mismatch, DQ_TO_DQS_mismatch, CMD_mismatch, CTL_mismatch, DLL_mismatch \
+                    = False, False, False, False, False
+                if signal_type == 'Differential':
+                    act_sheet = wb.sheets['ACT_diff']
+                    if 'Layer Mismatch' in segment_list:
+                        layer_mismatch = True
+                    if 'Segment Mismatch' in segment_list:
+                        segment_mismatch = True
+                    if 'Skew to Bundle' in segment_list:
+                        bundle_mismatch = True
+                    if 'Total Mismatch' in segment_list:
+                        total_mismatch = True
+                    if 'Relative Length Spec(DQS to DQS)' in segment_list:
+                        DQS_TO_DQS_mismatch = True
+                elif signal_type == 'Single-ended':
+                    act_sheet = wb.sheets['ACT_se']
+                    if 'Relative Length Spec(DQ to DQ)' in segment_list:
+                        DQ_TO_DQ_mismatch = True
+                    if 'Relative Length Spec(DQ to DQS)' in segment_list:
+                        DQ_TO_DQS_mismatch = True
+                    if 'CMD or ADD to CLK Length Matching' in segment_list:
+                        CMD_mismatch = True
+                    if 'CTL to CLK Length Matching' in segment_list:
+                        CTL_mismatch = True
+                    if 'DLL Group Length Matching' in segment_list:
+                        DLL_mismatch = True
+
+                act_content = act_sheet.range('A1').current_region.value  # net name 所有信息
+                # print(act_content)
+                act_data_dict = dict()
+                stub_value = []
+                for idx123 in xrange(len(start_sch_list)):
+                    for line in act_content:
+                        if start_sch_list[idx123] == line[0] and end_sch_list[idx123] == line[2] and start_net_list[
+                            idx123] == line[1]:
+                            if act_data_dict.get(
+                                    (start_sch_list[idx123], start_net_list[idx123], end_sch_list[idx123])) == None:
+                                # ##print((start_sch_list[idx123], start_net_list[idx123], end_sch_list[idx123]))
+                                act_data_dict[
+                                    ((start_sch_list[idx123], start_net_list[idx123], end_sch_list[idx123]), 'via')] = \
+                                    line[3]
+                                act_data_dict[
+                                    ((start_sch_list[idx123], start_net_list[idx123], end_sch_list[idx123]),
+                                     'total_length')] = line[4].split()[1]
+                                act_data_dict[
+                                    (start_sch_list[idx123], start_net_list[idx123], end_sch_list[idx123])] = [x for x
+                                                                                                               in
+                                                                                                               line[5::]
+                                                                                                               if
+                                                                                                               x not in [
+                                                                                                                   '',
+                                                                                                                   None]]
+
+                                # 通过过孔via数目判断是否有stub
+                                # 对data数据进行处理
+                                net_data = act_data_dict[
+                                    (start_sch_list[idx123], start_net_list[idx123], end_sch_list[idx123])]
+
+                            if topology_table[0][1] and topology_table[0][1].upper() in ['LOW LOSS', 'MID LOSS']:
+                                if int(line[3].split()[1]) > 0:
+                                    # # ##print(topology_table[0][1])
+                                    stub_layer_list = []
+                                    for idx in range(len(net_data)):
+                                        item = net_data[idx]
+                                        if str(item).find(":") > -1:
+                                            stub_layer_list += [x for x in item.split(':') if x in All_Layer_List]
+                                    index_list = []
+                                    for i in range(len(stub_layer_list)):
+                                        for j in range(len(layerLength_list)):
+                                            if stub_layer_list[i] == layerLength_list[j].keys()[0]:
+                                                # # ##print(j)  #具体走线层匹配的索引位置
+                                                # havingLength_layer_list.append({stub_layer_list[i]:layerLength_list[j].values()[0]}) #给对应层匹配相应的长度
+                                                index_list.append(j)
+                                    new_index_list = []
+                                    new_index_list = sorted(set(index_list))
+                                    top_stub = bottom_stub = 0
+
+                                    try:
+                                        for top_idx in range(1, new_index_list[-2]):
+                                            # print(layerLength_list[top_idx].values()[0])
+                                            top_stub += float(layerLength_list[top_idx].values()[0])
+                                    except:
+                                        pass
+
+                                    try:
+                                        for bot_idx in range(new_index_list[1] + 1, len(layerLength_list) - 1):
+                                            bottom_stub += float(layerLength_list[bot_idx].values()[0])
+                                    except:
+                                        pass
+
+                                    final_stub = round(max(top_stub, bottom_stub), 2)
+                                    stub_value.append(final_stub)
+                                else:
+                                    pass
+                # print('act_data_dict',act_data_dict)
+                if topology_table[0][1] and topology_table[0][1].upper() in ['LOW LOSS', 'MID LOSS']:
+                    # 获得当前的sheet名称
+                    active_sheet = wb.sheets.active
+                    PCIE_sheet = wb.sheets[active_sheet]
+                    for cell in PCIE_sheet.api.UsedRange.Cells:
+                        if cell.Value == 'Stub':
+                            Stub_ind = (cell.Row, cell.Column)
+                            break
+                    stub_table = active_sheet.range(Stub_ind).current_region.value
+                    # # ##print(stub_table)
+                    for idx in range(len(topology_table[2])):
+                        if topology_table[2][idx] == 'Total Length':
+                            len_idx = idx
+                            break
+                    if topology_table[0][1].upper() == 'LOW LOSS':
+                        if max(stub_value) > stub_table[1][0]:
+                            active_sheet.range(cell.Row[0] + 10, cell.Column[1] + len_idx).value = stub_table[2][2]
+                        else:
+                            active_sheet.range(cell.Row[0] + 10, cell.Column[1] + len_idx).value = stub_table[1][2]
+
+                    elif topology_table[0][1].upper() == 'MID LOSS':
+                        if max(stub_value) > stub_table[1][0] and max(stub_value) < stub_table[2][0]:
+                            active_sheet.range(cell.Row[0] + 10, cell.Column[1] + len_idx).value = stub_table[2][1]
+                        else:
+                            active_sheet.range(cell.Row[0] + 10, cell.Column[1] + len_idx).value = stub_table[1][1]
+                else:
+                    pass
+
+                skew_to_target_mismatch = False
+                segment_list = list(segment_list)
+                target_list_all = list()
+                # 对Skew to Target与Group Mismatch的情况进行讨论
+                for idx in xrange(len(segment_list)):
+                    seg = segment_list[idx]
+                    if seg.find('Skew to Target') > -1:
+                        skew_to_target_mismatch = True
+                        target_list_all.append(segment_list[idx].split(':')[1::])
+                        target_list_all[-1] = [x[1:-1].split(',') for x in target_list_all[-1]]
+                        segment_list[idx] = 'Skew to Target'
+                segment_list = tuple(segment_list)
+                # Get the list of "Group Mismatch Target"
+                group_mismatch = False
+                topology_name_list_all = list()
+                segment_list = list(segment_list)
+                for idx in xrange(len(segment_list)):
+                    if segment_list[idx].find('Group Mismatch') > -1:
+                        group_mismatch = True
+                        topology_name_list_all.append(segment_list[idx].split(':')[1::])
+                        # # ##print(topology_name_list_all)
+                        segment_list[idx] = 'Group Mismatch'
+                segment_list = tuple(segment_list)
+                # ##print(segment_list)
+
+                act_value_list = []
+                all_result_list = []
+                all_width_list = []
+                all_layer_list = []
+                for ind1 in xrange(len(start_sch_list)):
+                    if act_data_dict.get((start_sch_list[ind1], start_net_list[ind1], end_sch_list[ind1])):
+                        act_value_list.append(
+                            act_data_dict[(start_sch_list[ind1], start_net_list[ind1], end_sch_list[ind1])])
+                for ind1 in xrange(len(act_value_list)):
+                    half_result_list = []
+                    half_width_list = []
+                    half_layer_list = []
+                    del_ind_list = []
+                    act_value = act_value_list[ind1]
+
+                    for ind2 in xrange(len(act_value)):
+                        if str(act_value[ind2]).find(':') > -1 and isfloat(str(act_value[ind2]).split(':')[-1]) \
+                                or str(act_value[ind2]).find('net$') > -1:
+                            half_width_list.append(str(act_value[ind2]).split(':')[-1])
+
+                        if str(act_value[ind2]).find(':') > -1:
+                            for x in act_value[ind2].split(':'):
+                                if x in All_Layer_List:
+                                    half_layer_list.append(x)
+
+                        if str(act_value[ind2]).find('net$') > -1:
+                            half_layer_list.append(act_value[ind2])
+
+                        if str(act_value[ind2]).find(':') > -1 and isfloat(str(act_value[ind2]).split(':')[-2]):
+                            half_width_list.append(str(act_value[ind2]).split(':')[-2])
+
+                        if str(act_value[ind2]).find(':') == -1:
+                            half_result_list.append(act_value[ind2])
+                    all_result_list.append(half_result_list)
+                    all_width_list.append(half_width_list)
+                    all_layer_list.append(half_layer_list)
+
+                if signal_type == 'Differential':
+                    if total_mismatch:
+                        act_data_dict = TotalMismatch(start_sch_list, start_net_list, end_sch_list, act_data_dict)
+                    if layer_mismatch:
+                        act_data_dict = LayerMismatch(start_sch_list, start_net_list, end_sch_list, act_data_dict)
+                    if bundle_mismatch:
+                        act_data_dict = Skew2BundleMismatch(4, start_sch_list, start_net_list, end_sch_list,
+                                                            act_data_dict)
+                    if DQS_TO_DQS_mismatch:
+                        act_data_dict = DQSDLLMismatch(start_sch_list, start_net_list, end_sch_list, act_data_dict)
+                    # if amd_lother_cap:
+                    #     act_data_dict = ForAMD_LOther(start_sch_list, start_net_list, end_sch_list, act_data_dict)
+                    # if amd_lother_via:
+                    #     act_data_dict = ForAMD_LOther(start_sch_list, start_net_list, end_sch_list, act_data_dict, CAP_type = 'PTH', Length_Type = 'Pin2Pin')
+                else:
+                    if DQ_TO_DQ_mismatch:
+                        act_data_dict = DQTODQMismatch(start_sch_list, start_net_list, end_sch_list, act_data_dict)
+                    if DQ_TO_DQS_mismatch:
+                        act_data_dict = DQTODQSMismatch(start_sch_list, start_net_list, end_sch_list, act_data_dict)
+                    if CMD_mismatch:
+                        act_data_dict = CMDCTLMismatch(start_sch_list, start_net_list, end_sch_list, act_data_dict)
+                    if CTL_mismatch:
+                        act_data_dict = CMDCTLMismatch(start_sch_list, start_net_list, end_sch_list, act_data_dict,
+                                                       False)
+                    if DLL_mismatch:
+                        act_data_dict = DQSDLLMismatch(start_sch_list, start_net_list, end_sch_list, act_data_dict,
+                                                       False)
+                if skew_to_target_mismatch:
+                    act_data_dict = Skew2TargetMismatch(start_sch_list, start_net_list, end_sch_list, act_data_dict,
+                                                        target_list_all, act_content)
+                if group_mismatch:
+                    # 若无特殊情况 topology_name_list_all为空[]
+                    act_data_dict = GroupMismatch(topology_name_list_all, start_sch_list, start_net_list, end_sch_list,
+                                                  act_data_dict, act_content)
+
+                act_data_layer_list = []
+                result_dict = dict()
+                check_length_seg_list = list()
+                idx_all = -1
+                segment_result_dict = {}
+                real_segment_list = []
+                # 分段索引
+                segment_org_name_list = [str(x) for x in xrange(1, len(all_width_list[0]))]
+
+                for id1 in xrange(len(start_sch_list)):
+                    idx_all += 1
+                    if act_data_dict.get((start_sch_list[id1], start_net_list[id1], end_sch_list[id1])) != None:
+                        result_list = list()
+                        segment_out_name_list = []
+                        act_data = act_data_dict[(start_sch_list[id1], start_net_list[id1], end_sch_list[id1])]
+                        act_data_layer_list.append(act_data)
+                        length_dict = dict()
+                        count1 = 0
+                        ignore_key1 = '$CN%d' % count1
+
+                        group_mismatch_count = 0
+                        skew2target_count = 0
+                        # # ##print('act_data', act_data)
+                        for idx1 in xrange(len(segment_list)):
+                            # # ##print('segment_list', segment_list[idx1])
+                            seg = segment_list[idx1]
+
+                            layer_change_count = 0
+
+                            # Check Order trace width, connect sch, change layer
+                            check_length = False
+                            check_connect_sch = False
+                            check_layer_change = False
+                            check_layer_change_num = 1
+                            check_cross_over = False
+                            # # ##print('trace_width_list', trace_width_list[idx1])
+
+                            # 如果有trace width才去check
                             # # ##print('trace_width_list[idx1]', trace_width_list[idx1])
-                            spec_trace_width_list = trace_width_list[idx1]
-                            spec_layer_type_list = layer_list[idx1]
+                            connect_sch_spec = ''
+                            #
+                            if type(trace_width_list[idx1]) == type([]):
+                                check_length = True
+                                # # ##print('trace_width_list[idx1]', trace_width_list[idx1])
+                                spec_trace_width_list = trace_width_list[idx1]
+                                spec_layer_type_list = layer_list[idx1]
 
-                            try:
-                                # # ##print('connect_sch_list[idx1]', connect_sch_list[idx1])
-                                if connect_sch_list[idx1] not in ['N', 'NA', 'None', 'All', 'Connect Component']:
-                                    check_connect_sch = True
-                                    connect_sch_spec = connect_sch_list[idx1]
-                            except:
-                                pass
+                                try:
+                                    # # ##print('connect_sch_list[idx1]', connect_sch_list[idx1])
+                                    if connect_sch_list[idx1] not in ['N', 'NA', 'None', 'All', 'Connect Component']:
+                                        check_connect_sch = True
+                                        connect_sch_spec = connect_sch_list[idx1]
+                                except:
+                                    pass
 
-                            try:
-                                if layer_change_list[idx1] == 'Y':
-                                    check_layer_change = True
-                                elif re.findall('^Y\d$', layer_change_list[idx1]) != []:
-                                    check_layer_change = True
-                                    check_layer_change_num = int(re.findall('^Y(\d)$', layer_change_list[idx1])[0])
-                            except:
-                                pass
+                                try:
+                                    if layer_change_list[idx1] == 'Y':
+                                        check_layer_change = True
+                                    elif re.findall('^Y\d$', layer_change_list[idx1]) != []:
+                                        check_layer_change = True
+                                        check_layer_change_num = int(re.findall('^Y(\d)$', layer_change_list[idx1])[0])
+                                except:
+                                    pass
 
-                        if check_length:
-                            # # ##print('check_connect_sch', check_connect_sch)
-                            # # ##print('ok1')
-                            check_length_seg_list.append(segment_list[idx1])
-                            # # ##print(check_length_seg_list)
-                            length = 0
-                            segment_part_name = ''
-                            end = False
-                            check_layer_change_wrong = False
-                            check_cross_over_wrong = False
-                            while end is False:
-                                # # ##print(segment_list[idx1])
-                                # # ##print(ignore_segment_dict[(start_sch_list[id1], start_net_list[id1], end_sch_list[id1])])
-                                # 没有发现！符号，都为空
-                                if segment_list[idx1] in ignore_segment_dict[
-                                    (start_sch_list[id1], start_net_list[id1], end_sch_list[id1])]:
-                                    result_list.append(0)
-                                    break
-                                # 不知ignore_key1有何作用
-                                if ignore_key1 in ignore_segment_dict[
-                                    (start_sch_list[id1], start_net_list[id1], end_sch_list[id1])] or act_data == []:
-                                    result_list.append('NA')
-                                    break
-                                # # ##print(act_data)
-                                for idx2 in xrange(len(act_data)):
-                                    # # ##print('ok2')
-                                    # # ##print(1, act_data)
-                                    # # ##print('act_data', act_data)
-                                    act_seg = act_data[idx2]
-                                    # # ##print('act_seg', act_seg)
-                                    if act_data[idx2].find(':') > -1:
-                                        # # ##print('ok3')
-                                        # # ##print(act_data[idx2])
+                            if check_length:
+                                # # ##print('check_connect_sch', check_connect_sch)
+                                # # ##print('ok1')
+                                check_length_seg_list.append(segment_list[idx1])
+                                # # ##print(check_length_seg_list)
+                                length = 0
+                                segment_part_name = ''
+                                end = False
+                                check_layer_change_wrong = False
+                                check_cross_over_wrong = False
+                                while end is False:
+                                    # # ##print(segment_list[idx1])
+                                    # # ##print(ignore_segment_dict[(start_sch_list[id1], start_net_list[id1], end_sch_list[id1])])
+                                    # 没有发现！符号，都为空
+                                    if segment_list[idx1] in ignore_segment_dict[
+                                        (start_sch_list[id1], start_net_list[id1], end_sch_list[id1])]:
+                                        result_list.append(0)
+                                        break
+                                    # 不知ignore_key1有何作用
+                                    if ignore_key1 in ignore_segment_dict[
+                                        (
+                                                start_sch_list[id1], start_net_list[id1],
+                                                end_sch_list[id1])] or act_data == []:
+                                        result_list.append('NA')
+                                        break
+                                    # # ##print(act_data)
+                                    for idx2 in xrange(len(act_data)):
+                                        # # ##print('ok2')
+                                        # # ##print(1, act_data)
+                                        # # ##print('act_data', act_data)
+                                        act_seg = act_data[idx2]
+                                        # # ##print('act_seg', act_seg)
+                                        if act_data[idx2].find(':') > -1:
+                                            # # ##print('ok3')
+                                            # # ##print(act_data[idx2])
 
-                                        # 实际的 trace width 和实际的 layer
-                                        trace_width = \
-                                        ['%.3f' % float(x) for x in act_data[idx2].split(':') if isfloat(x)][
-                                            0]
-                                        # # ##print(4, trace_width)
-                                        layer = [x for x in act_data[idx2].split(':') if x in All_Layer_List][0]
-                                        layer_type = layer_type_dict[layer]
+                                            # 实际的 trace width 和实际的 layer
+                                            trace_width = \
+                                                ['%.3f' % float(x) for x in act_data[idx2].split(':') if isfloat(x)][
+                                                    0]
+                                            # # ##print(4, trace_width)
+                                            layer = [x for x in act_data[idx2].split(':') if x in All_Layer_List][0]
+                                            layer_type = layer_type_dict[layer]
 
-                                        if trace_width in spec_trace_width_list and layer_type in spec_layer_type_list:
-                                            length += float('%.3f' % act_data[idx2 + 1])
-                                            try:
-                                                segment_part_name += segment_org_name_list[idx2]
-                                                # segment_org_name_list = segment_org_name_list[idx2 + 1:]
-                                            except:
-                                                pass
-                                            act_data = act_data[idx2 + 2::]
+                                            if trace_width in spec_trace_width_list and layer_type in spec_layer_type_list:
+                                                length += float('%.3f' % act_data[idx2 + 1])
+                                                try:
+                                                    segment_part_name += segment_org_name_list[idx2]
+                                                    # segment_org_name_list = segment_org_name_list[idx2 + 1:]
+                                                except:
+                                                    pass
+                                                act_data = act_data[idx2 + 2::]
 
-                                            if check_connect_sch:
-                                                if connect_sch_spec == 'Y':  # check any connect sch
-                                                    if act_data[idx2].split(':')[-1].find('[') == 0:
-                                                        end = True
-                                                        connect_sch_spec = ''
-                                                        break
-                                                else:  # check specific connect sch with the keyword of sch name
-                                                    if connect_sch_spec.find('/') > -1:
-                                                        connect_sch_spec_list = connect_sch_spec.split('/')
-                                                        for sch_tmp1 in connect_sch_spec_list:
-                                                            if sch_tmp1.find('-') > -1:
-                                                                if '[%s]' % sch_tmp1 == act_data[idx2].split(':')[-1]:
+                                                if check_connect_sch:
+                                                    if connect_sch_spec == 'Y':  # check any connect sch
+                                                        if act_data[idx2].split(':')[-1].find('[') == 0:
+                                                            end = True
+                                                            connect_sch_spec = ''
+                                                            break
+                                                    else:  # check specific connect sch with the keyword of sch name
+                                                        if connect_sch_spec.find('/') > -1:
+                                                            connect_sch_spec_list = connect_sch_spec.split('/')
+                                                            for sch_tmp1 in connect_sch_spec_list:
+                                                                if sch_tmp1.find('-') > -1:
+                                                                    if '[%s]' % sch_tmp1 == act_data[idx2].split(':')[
+                                                                        -1]:
+                                                                        end = True
+                                                                        break
+                                                                else:
+                                                                    if act_seg.split(':')[-1].find(sch_tmp1) > -1:
+                                                                        end = True
+                                                                        break
+                                                        else:
+                                                            if connect_sch_spec.find('-') > -1:
+                                                                if '[%s]' % connect_sch_spec == \
+                                                                        act_data[idx2].split(':')[
+                                                                            -1]:
                                                                     end = True
                                                                     break
                                                             else:
-                                                                if act_seg.split(':')[-1].find(sch_tmp1) > -1:
+                                                                if act_seg.split(':')[-1].find(connect_sch_spec) > -1:
                                                                     end = True
                                                                     break
-                                                    else:
-                                                        if connect_sch_spec.find('-') > -1:
-                                                            if '[%s]' % connect_sch_spec == act_data[idx2].split(':')[
-                                                                -1]:
-                                                                end = True
-                                                                break
-                                                        else:
-                                                            if act_seg.split(':')[-1].find(connect_sch_spec) > -1:
-                                                                end = True
-                                                                break
 
-                                            if check_layer_change:
+                                                if check_layer_change:
 
-                                                try:
-                                                    act_seg_next = act_data[0]
+                                                    try:
+                                                        act_seg_next = act_data[0]
 
-                                                    if str(act_seg_next).find('net$') > -1:
-                                                        end = True
-                                                        break
-
-                                                    layer_next = \
-                                                        [x for x in act_seg_next.split(':') if x in All_Layer_List][0]
-                                                    if layer != layer_next:
-                                                        layer_change_count += 1
-                                                        if layer_change_count == check_layer_change_num:
+                                                        if str(act_seg_next).find('net$') > -1:
                                                             end = True
                                                             break
-                                                except:
-                                                    if act_data != []:
-                                                        # 表示抓到下一段net(net name改變), 需示警
-                                                        result_list.append('Warning!')
-                                                        check_layer_change_wrong = True
-                                                        end = True
-                                                        break
 
-                                            if check_cross_over:
-                                                try:
-                                                    act_seg_next = act_data[0]
+                                                        layer_next = \
+                                                            [x for x in act_seg_next.split(':') if x in All_Layer_List][
+                                                                0]
+                                                        if layer != layer_next:
+                                                            layer_change_count += 1
+                                                            if layer_change_count == check_layer_change_num:
+                                                                end = True
+                                                                break
+                                                    except:
+                                                        if act_data != []:
+                                                            # 表示抓到下一段net(net name改變), 需示警
+                                                            result_list.append('Warning!')
+                                                            check_layer_change_wrong = True
+                                                            end = True
+                                                            break
 
-                                                    if str(act_seg_next).find('net$') > -1:
-                                                        end = True
-                                                        break
+                                                if check_cross_over:
+                                                    try:
+                                                        act_seg_next = act_data[0]
 
-                                                except:
-                                                    if act_data != []:
-                                                        result_list.append('Warning!')
-                                                        check_cross_over_wrong = True
-                                                        end = True
-                                                        break
+                                                        if str(act_seg_next).find('net$') > -1:
+                                                            end = True
+                                                            break
 
-                                        else:  # trace width not match, jump to next spec of topology segment
+                                                    except:
+                                                        if act_data != []:
+                                                            result_list.append('Warning!')
+                                                            check_cross_over_wrong = True
+                                                            end = True
+                                                            break
+
+                                            else:  # trace width not match, jump to next spec of topology segment
+                                                end = True
+
+                                            break
+                                        elif act_seg.find('net$') > -1:
                                             end = True
-
-                                        break
-                                    elif act_seg.find('net$') > -1:
+                                            break
+                                    if act_data == []:
                                         end = True
-                                        break
-                                if act_data == []:
-                                    end = True
-                                if end and not check_layer_change_wrong and not check_cross_over_wrong:
-                                    length_dict[seg] = float('%.3f' % length)
-                                    result_list.append(float('%.3f' % length))
-                                    if segment_part_name != '':
-                                        segment_out_name_list.append(segment_part_name)
-                        else:
-
-                            if segment_list[idx1] == 'Component Name':
-                                count1 += 1
-                                ignore_key1 = '$CN%d' % count1
-
-                                if len(act_data) > 0 and ignore_key1 not in ignore_segment_dict[
-                                    (start_sch_list[id1], start_net_list[id1], end_sch_list[id1])] and act_data[0].find(
-                                    'net$') > -1:
-
-                                    result_list.append(act_data[1].split(':')[0][1:-1])
-                                    # # ##print(1, result_list)
-                                    result_list.append(act_data[0][4::])
-                                    # # ##print(2, result_list)
-                                    act_data = act_data[1::]
-                                else:
-                                    result_list.append('NA')
-                                    result_list.append('NA')
-
-                            elif seg == 'Total Length':
-                                result_list.append(act_data_dict[(
-                                    (start_sch_list[id1], start_net_list[id1], end_sch_list[id1]), 'total_length')])
-
-                            elif segment_list[idx1] == 'Via Count':
-                                result_list.append(act_data_dict[(
-                                    (start_sch_list[id1], start_net_list[id1], end_sch_list[id1]), 'via')].split()[1])
-                            elif re.findall(r'\+|\-|\*|\/', seg) != []:
-                                if seg not in ignore_segment_dict[
-                                    (start_sch_list[id1], start_net_list[id1], end_sch_list[id1])]:
-                                    sub_seg_list = re.split(r'\+|\-|\*|\/|\(|\)', segment_list[idx1])
-                                    sub_seg_list = [x for x in sub_seg_list if x != '']
-                                    seg_tmp = str(seg)
-
-                                    sub_seg_len_list = []
-                                    for x in sub_seg_list:
-                                        sub_seg_len_list.append(length_dict.get(x, 0))
-
-                                    for id_sub in xrange(len(sub_seg_list)):
-                                        try:
-                                            float(sub_seg_list[id_sub])
-                                        except ValueError:
-                                            seg_tmp = seg_tmp.replace(sub_seg_list[id_sub],
-                                                                      str(float(sub_seg_len_list[id_sub])))
-
-                                    result_list.append(eval(seg_tmp))
-
-                                else:
-                                    result_list.append('NA')
-                            elif seg == 'Total Mismatch':
-                                result_list.append(act_data_dict[(
-                                    (start_sch_list[id1], start_net_list[id1], end_sch_list[id1]), 'total_mismatch')])
-                            elif segment_list[idx1] == 'Layer Mismatch':
-                                result_list.append(act_data_dict[(
-                                    (start_sch_list[id1], start_net_list[id1], end_sch_list[id1]), 'layer_mismatch')])
-                            elif segment_list[idx1] == 'Skew to Bundle':
-                                result_list.append(act_data_dict[(
-                                    (start_sch_list[id1], start_net_list[id1], end_sch_list[id1]), 'bundle_mismatch')])
-                            elif seg == 'Skew to Target':
-
-                                if '$SK2T' not in ignore_segment_dict[
-                                    (start_sch_list[id1], start_net_list[id1], end_sch_list[id1])] and '$SK2T%d' % (
-                                        skew2target_count + 1) not in ignore_segment_dict[
-                                    (start_sch_list[id1], start_net_list[id1], end_sch_list[id1])]:
-                                    if target_list_all != []:
-                                        result_list.append(act_data_dict[(
-                                            (start_sch_list[id1], start_net_list[id1], end_sch_list[id1]),
-                                            'skew2target%d' % skew2target_count)])
-                                    else:
-                                        result_list.append('NA')
-                                else:
-                                    result_list.append('NA')
-
-                                skew2target_count += 1
-
-                            elif segment_list[idx1] == 'Group Mismatch':
-                                if '$GM' not in ignore_segment_dict[
-                                    (start_sch_list[id1], start_net_list[id1], end_sch_list[id1])] and '$GM%d' % (
-                                        group_mismatch_count + 1) not in ignore_segment_dict[
-                                    (start_sch_list[id1], start_net_list[id1], end_sch_list[id1])]:
-                                    if topology_name_list_all != []:
-                                        result_list.append(act_data_dict[(
-                                            (start_sch_list[id1], start_net_list[id1], end_sch_list[id1]),
-                                            'group_mismatch%d' % group_mismatch_count)])
-                                    else:
-                                        result_list.append('NA')
-                                else:
-                                    result_list.append('NA')
-                                group_mismatch_count += 1
-
-                            elif segment_list[idx1] == 'Relative Length Spec(DQS to DQS)':
-                                result_list.append(act_data_dict[((start_sch_list[id1], start_net_list[id1],
-                                                                   end_sch_list[id1]), 'DQS_TO_DQS')])
-                            elif segment_list[idx1] == 'Relative Length Spec(DQ to DQ)':
-                                result_list.append(act_data_dict[((start_sch_list[id1], start_net_list[id1],
-                                                                   end_sch_list[id1]), 'DQ_TO_DQ')])
-                            elif segment_list[idx1] == 'Relative Length Spec(DQ to DQS)':
-                                result_list.append(act_data_dict[((start_sch_list[id1], start_net_list[id1],
-                                                                   end_sch_list[id1]), 'DQ_TO_DQS')])
-                            elif segment_list[idx1] == 'CMD or ADD to CLK Length Matching':
-                                result_list.append(act_data_dict[((start_sch_list[id1], start_net_list[id1],
-                                                                   end_sch_list[id1]), 'CMD_TO_CLK')])
-                            elif segment_list[idx1] == 'CTL to CLK Length Matching':
-                                result_list.append(act_data_dict[((start_sch_list[id1], start_net_list[id1],
-                                                                   end_sch_list[id1]), 'CTL_TO_CLK')])
-                            elif segment_list[idx1] == 'DLL Group Length Matching':
-                                result_list.append(act_data_dict[((start_sch_list[id1], start_net_list[id1],
-                                                                   end_sch_list[id1]), 'DLL_Group')])
-                            elif segment_list[idx1] == 'Result':
-                                cal_title_list = ['Total Mismatch', 'Layer Mismatch', 'Total Length', 'Via Count',
-                                                  'Result',
-                                                  'Segment Mismatch', 'Skew to Bundle', 'Skew to Target',
-                                                  'Group Mismatch',
-                                                  'Relative Length Spec(DQS to DQS)', 'Relative Length Spec(DQ to DQ)',
-                                                  'Relative Length Spec(DQ to DQS)',
-                                                  'CMD or ADD to CLK Length Matching',
-                                                  'CTL to CLK Length Matching', 'DLL Group Length Matching']
-
-                                total_length_tmp = [result_list[idx_tmp] for idx_tmp in xrange(len(segment_list)) if
-                                                    segment_list[idx_tmp].find('+') == -1 and segment_list[
-                                                        idx_tmp] not in cal_title_list]
-                                total_length_tmp = sum([float(x) for x in total_length_tmp if isfloat(x)])
-
-                                if abs(float(
-                                        act_data_dict[((start_sch_list[id1], start_net_list[id1], end_sch_list[id1]),
-                                                       'total_length')]) - total_length_tmp) < 0.01:
-                                    result_list.append('Setting OK')
-                                else:
-                                    result_list.append('Something Wrong')
-                            elif seg in ['Segment Name', 'Start Segment Name']:
-                                pass
+                                    if end and not check_layer_change_wrong and not check_cross_over_wrong:
+                                        length_dict[seg] = float('%.3f' % length)
+                                        result_list.append(float('%.3f' % length))
+                                        if segment_part_name != '':
+                                            segment_out_name_list.append(segment_part_name)
                             else:
-                                result_list.append('NA')
-                    result_dict[(start_sch_list[id1], start_net_list[id1], end_sch_list[id1])] = result_list
-                else:
-                    result_dict[(start_sch_list[id1], start_net_list[id1], end_sch_list[id1])] = ['NA'] * len(
-                        segment_list)
 
-            if segment_mismatch:
-                result_dict, color_ind_list = SegmentMismatch(start_sch_list, start_net_list, end_sch_list, result_dict,
-                                                              all_width_list, all_layer_list, all_result_list,
-                                                              segment_out_name_list)
+                                if segment_list[idx1] == 'Component Name':
+                                    count1 += 1
+                                    ignore_key1 = '$CN%d' % count1
 
-            idx1 = -1
-            for idb in xrange(len(start_sch_list)):
-                idx1 += 1
-                SetCellBorder(active_sheet, (result_ind2[0] + idx1, result_ind2[1] - 3))
-                SetCellBorder(active_sheet, (result_ind2[0] + idx1, result_ind2[1] - 2))
-                SetCellBorder(active_sheet, (result_ind2[0] + idx1, result_ind2[1] - 1))
-                if result_dict.get((start_sch_list[idb], start_net_list[idb], end_sch_list[idb])) != None:
-                    for idx2 in xrange(len(result_dict[(start_sch_list[idb], start_net_list[idb], end_sch_list[idb])])):
-                        active_sheet.range((result_ind2[0] + idx1, result_ind2[1] + idx2)).value = \
-                            result_dict[(start_sch_list[idb], start_net_list[idb], end_sch_list[idb])][idx2]
+                                    if len(act_data) > 0 and ignore_key1 not in ignore_segment_dict[
+                                        (start_sch_list[id1], start_net_list[id1], end_sch_list[id1])] and act_data[
+                                        0].find(
+                                        'net$') > -1:
 
-            if segment_mismatch:
-                for ind in xrange(len(start_sch_list) / 2):
-                    # 判断颜色
-                    try:
-                        if color_ind_list[ind] == 0:
-                            active_sheet.range(
-                                (start_ind[0] + 12 + ind * 2, start_ind[1] + se1_ind)).api.Interior.ColorIndex = 4
-                            active_sheet.range(
-                                (start_ind[0] + 13 + ind * 2, start_ind[1] + se1_ind)).api.Interior.ColorIndex = 4
-                        elif color_ind_list[ind] == 1:
-                            active_sheet.range(
-                                (start_ind[0] + 12 + ind * 2, start_ind[1] + se1_ind)).api.Interior.ColorIndex = 3
-                            active_sheet.range(
-                                (start_ind[0] + 13 + ind * 2, start_ind[1] + se1_ind)).api.Interior.ColorIndex = 3
-                    except:
-                        pass
+                                        result_list.append(act_data[1].split(':')[0][1:-1])
+                                        # # ##print(1, result_list)
+                                        result_list.append(act_data[0][4::])
+                                        # # ##print(2, result_list)
+                                        act_data = act_data[1::]
+                                    else:
+                                        result_list.append('NA')
+                                        result_list.append('NA')
 
-        # SetCellFont_current_region(active_sheet, cell_idx, 'Times New Roman', 12, 'l')
-        # SetCellBorder_current_region(active_sheet, cell_idx)
-        # active_sheet.autofit('c')
-    ShowBatchUpdate(color_ind_list)
-    # for cell in active_sheet.api.UsedRange.Cells:
-    #     if cell.Value == 'Topology':
-    #         cell_idx = (cell.Row, cell.Column)
-    #         # ##print('cell_idx',cell_idx)
-    #         topology_table = active_sheet.range(cell_idx).current_region.value
-    #         for se_ind in xrange(len(topology_table[2])):
-    #             # 获取Segment Mismatch的管控条件
-    #             if topology_table[2][se_ind] and topology_table[2][se_ind].find('Segment Mismatch') > -1:
-    #                 se1_ind = se_ind
-    #         for idx1 in xrange(len(topology_table)):
-    #             line = topology_table[idx1]
-    #             for idx2 in xrange(len(line)):
-    #                 if line[idx2] == 'Net Name':
-    #                     spec_table_length = idx1 + 1
-    #                     break
-    #         # ##print('spec_table_length',spec_table_length)
-    #
-    #         # 获取坐标
-    #         start_sch_ind = (cell_idx[0] + spec_table_length, cell_idx[1])
-    #         end_sch_ind = (start_sch_ind[0], start_sch_ind[1] + 1)
-    #         start_net_ind = (end_sch_ind[0], end_sch_ind[1] + 1)
-    #         result_ind1 = (start_net_ind[0], start_net_ind[1] - 2)
-    #         result_ind2 = (start_net_ind[0], start_net_ind[1] + 1)
-    #
-    #         for idxx in xrange(len(topology_table)):
-    #             row_tmp = topology_table[idxx]
-    #             if 'Start Segment Name' in row_tmp:
-    #                 segment_list = topology_table[idxx][3::]
-    #                 segment_list = [x for x in segment_list if x not in ['', None]]
-    #                 result_idx = segment_list.index('Result')
-    #             elif 'Min' in topology_table[idxx]:
-    #                 spec_min_list = [str(x) for x in topology_table[idxx][3::]]
-    #                 spec_min_list = spec_min_list[0:result_idx + 1]
-    #             elif 'Max' in row_tmp:
-    #                 spec_max_list = [str(x) for x in topology_table[idxx][3::]]
-    #                 spec_max_list = spec_max_list[0:result_idx + 1]
-    #         len1 = len(active_sheet.range(result_ind1).options(expand='table', ndim=2).value)
-    #
-    #         SetCellFont_current_region(active_sheet, cell_idx, 'Times New Roman', 12, 'l')
-    #         SetCellBorder_current_region(active_sheet, cell_idx)
-    #         active_sheet.autofit('c')
-    #
-    #         for idx1 in xrange(len1):
-    #             result_cell_idx = (result_ind2[0] + idx1, result_ind2[1] + result_idx)
-    #             if active_sheet.range(result_cell_idx).value != 'Something Wrong':
-    #                 active_sheet.range(result_cell_idx).api.Interior.ColorIndex = 4
-    #                 active_sheet.range(result_cell_idx).value = 'Pass'
-    #             elif active_sheet.range(result_cell_idx).value == 'Something Wrong':
-    #                 active_sheet.range(result_cell_idx).api.Interior.ColorIndex = 3
-    #         # for idx1 in xrange(int(len1 / 2)):
-    #         #     result_cell_idx1 = (result_ind2[0] + idx1 * 2, result_ind2[1] + result_idx)
-    #         #     result_cell_idx2 = (result_ind2[0] + idx1 * 2 + 1, result_ind2[1] + result_idx)
-    #         #     if active_sheet.range(result_cell_idx1).value != 'Something Wrong' and \
-    #         #             active_sheet.range(result_cell_idx2).value != 'Something Wrong':
-    #         #         if color_ind_list != []:
-    #         #             if color_ind_list[idx1] == 1:
-    #         #                 active_sheet.range(result_cell_idx1).value = 'Fail'
-    #         #                 active_sheet.range(result_cell_idx2).value = 'Fail'
-    #         #                 active_sheet.range(result_cell_idx1).api.Interior.ColorIndex = 3
-    #         #                 active_sheet.range(result_cell_idx2).api.Interior.ColorIndex = 3
-    #
-    #         for idx1 in xrange(len(segment_list)):
-    #             for idx2 in xrange(len1):
-    #                 spec_min = spec_min_list[idx1]
-    #                 spec_max = spec_max_list[idx1]
-    #                 result_cell_idx = (result_ind2[0] + idx2, result_ind2[1] + result_idx)
-    #                 if active_sheet.range(result_cell_idx).value != 'Something Wrong':
-    #                     if isfloat(active_sheet.range((result_ind2[0] + idx2, result_ind2[1] + idx1)).value):
-    #                         if spec_min == 'NA' and isfloat(spec_max):
-    #                             if float(active_sheet.range(
-    #                                     (result_ind2[0] + idx2, result_ind2[1] + idx1)).value) <= float(
-    #                                     spec_max):
-    #                                 active_sheet.range(
-    #                                     (result_ind2[0] + idx2, result_ind2[1] + idx1)).api.Interior.ColorIndex = 4
-    #                             else:
-    #                                 active_sheet.range(
-    #                                     (result_ind2[0] + idx2, result_ind2[1] + idx1)).api.Interior.ColorIndex = 3
-    #                                 active_sheet.range(result_cell_idx).api.Interior.ColorIndex = 3
-    #                                 active_sheet.range(result_cell_idx).value = 'Fail'
-    #                         elif isfloat(spec_min) and isfloat(spec_max):
-    #                             if float(spec_min) <= float(
-    #                                     active_sheet.range(
-    #                                         (result_ind2[0] + idx2, result_ind2[1] + idx1)).value) <= float(spec_max):
-    #                                 active_sheet.range(
-    #                                     (result_ind2[0] + idx2, result_ind2[1] + idx1)).api.Interior.ColorIndex = 4
-    #                             else:
-    #                                 active_sheet.range(
-    #                                     (result_ind2[0] + idx2, result_ind2[1] + idx1)).api.Interior.ColorIndex = 3
-    #                                 active_sheet.range(result_cell_idx).api.Interior.ColorIndex = 3
-    #                                 active_sheet.range(result_cell_idx).value = 'Fail'
-    #                         elif isfloat(spec_min) and spec_max == 'NA':
-    #                             if float(spec_min) <= float(
-    #                                     active_sheet.range((result_ind2[0] + idx2, result_ind2[1] + idx1)).value):
-    #                                 active_sheet.range(
-    #                                     (result_ind2[0] + idx2, result_ind2[1] + idx1)).api.Interior.ColorIndex = 4
-    #                             else:
-    #                                 active_sheet.range(
-    #                                     (result_ind2[0] + idx2, result_ind2[1] + idx1)).api.Interior.ColorIndex = 3
-    #                                 active_sheet.range(result_cell_idx).api.Interior.ColorIndex = 3
-    #                                 active_sheet.range(result_cell_idx).value = 'Fail'
+                                elif seg == 'Total Length':
+                                    result_list.append(act_data_dict[(
+                                        (start_sch_list[id1], start_net_list[id1], end_sch_list[id1]), 'total_length')])
 
+                                elif segment_list[idx1] == 'Via Count':
+                                    result_list.append(act_data_dict[(
+                                        (start_sch_list[id1], start_net_list[id1], end_sch_list[id1]), 'via')].split()[
+                                                           1])
+                                elif re.findall(r'\+|\-|\*|\/', seg) != []:
+                                    if seg not in ignore_segment_dict[
+                                        (start_sch_list[id1], start_net_list[id1], end_sch_list[id1])]:
+                                        sub_seg_list = re.split(r'\+|\-|\*|\/|\(|\)', segment_list[idx1])
+                                        sub_seg_list = [x for x in sub_seg_list if x != '']
+                                        seg_tmp = str(seg)
 
-def ShowBatchUpdate(color_ind_list):
-    wb = Book(xlsm_path).caller()
-    active_sheet = wb.sheets.active
-    for cell in active_sheet.api.UsedRange.Cells:
-        if cell.Value == 'Topology':
-            cell_idx = (cell.Row, cell.Column)
-            # ##print('cell_idx',cell_idx)
-            topology_table = active_sheet.range(cell_idx).current_region.value
-            for se_ind in xrange(len(topology_table[2])):
-                # 获取Segment Mismatch的管控条件
-                if topology_table[2][se_ind] and topology_table[2][se_ind].find('Segment Mismatch') > -1:
-                    se1_ind = se_ind
-            for idx1 in xrange(len(topology_table)):
-                line = topology_table[idx1]
-                for idx2 in xrange(len(line)):
-                    if line[idx2] == 'Net Name':
-                        spec_table_length = idx1 + 1
-                        break
-            # ##print('spec_table_length',spec_table_length)
+                                        sub_seg_len_list = []
+                                        for x in sub_seg_list:
+                                            sub_seg_len_list.append(length_dict.get(x, 0))
 
-            # 获取坐标
-            start_sch_ind = (cell_idx[0] + spec_table_length, cell_idx[1])
-            end_sch_ind = (start_sch_ind[0], start_sch_ind[1] + 1)
-            start_net_ind = (end_sch_ind[0], end_sch_ind[1] + 1)
-            result_ind1 = (start_net_ind[0], start_net_ind[1] - 2)
-            result_ind2 = (start_net_ind[0], start_net_ind[1] + 1)
+                                        for id_sub in xrange(len(sub_seg_list)):
+                                            try:
+                                                float(sub_seg_list[id_sub])
+                                            except ValueError:
+                                                seg_tmp = seg_tmp.replace(sub_seg_list[id_sub],
+                                                                          str(float(sub_seg_len_list[id_sub])))
 
-            for idxx in xrange(len(topology_table)):
-                row_tmp = topology_table[idxx]
-                if 'Start Segment Name' in row_tmp:
-                    segment_list = topology_table[idxx][3::]
-                    segment_list = [x for x in segment_list if x not in ['', None]]
-                    result_idx = segment_list.index('Result')
-                elif 'Min' in topology_table[idxx]:
-                    spec_min_list = [str(x) for x in topology_table[idxx][3::]]
-                    spec_min_list = spec_min_list[0:result_idx + 1]
-                elif 'Max' in row_tmp:
-                    spec_max_list = [str(x) for x in topology_table[idxx][3::]]
-                    spec_max_list = spec_max_list[0:result_idx + 1]
-            len1 = len(active_sheet.range(result_ind1).options(expand='table', ndim=2).value)
+                                        result_list.append(eval(seg_tmp))
 
-            SetCellFont_current_region(active_sheet, cell_idx, 'Times New Roman', 12, 'l')
-            SetCellBorder_current_region(active_sheet, cell_idx)
-            active_sheet.autofit('c')
+                                    else:
+                                        result_list.append('NA')
+                                elif seg == 'Total Mismatch':
+                                    result_list.append(act_data_dict[(
+                                        (start_sch_list[id1], start_net_list[id1], end_sch_list[id1]),
+                                        'total_mismatch')])
+                                elif segment_list[idx1] == 'Layer Mismatch':
+                                    result_list.append(act_data_dict[(
+                                        (start_sch_list[id1], start_net_list[id1], end_sch_list[id1]),
+                                        'layer_mismatch')])
+                                elif segment_list[idx1] == 'Skew to Bundle':
+                                    result_list.append(act_data_dict[(
+                                        (start_sch_list[id1], start_net_list[id1], end_sch_list[id1]),
+                                        'bundle_mismatch')])
+                                elif seg == 'Skew to Target':
 
-            for idx1 in xrange(len1):
-                result_cell_idx = (result_ind2[0] + idx1, result_ind2[1] + result_idx)
-                if active_sheet.range(result_cell_idx).value != 'Something Wrong':
-                    active_sheet.range(result_cell_idx).api.Interior.ColorIndex = 4
-                    active_sheet.range(result_cell_idx).value = 'Pass'
-                elif active_sheet.range(result_cell_idx).value == 'Something Wrong':
-                    active_sheet.range(result_cell_idx).api.Interior.ColorIndex = 3
-            for idx1 in xrange(int(len1 / 2)):
-                result_cell_idx1 = (result_ind2[0] + idx1 * 2, result_ind2[1] + result_idx)
-                result_cell_idx2 = (result_ind2[0] + idx1 * 2 + 1, result_ind2[1] + result_idx)
-                if active_sheet.range(result_cell_idx1).value != 'Something Wrong' and \
-                        active_sheet.range(result_cell_idx2).value != 'Something Wrong':
-                    if color_ind_list != []:
-                        if color_ind_list[idx1] == 1:
-                            active_sheet.range(result_cell_idx1).value = 'Fail'
-                            active_sheet.range(result_cell_idx2).value = 'Fail'
-                            active_sheet.range(result_cell_idx1).api.Interior.ColorIndex = 3
-                            active_sheet.range(result_cell_idx2).api.Interior.ColorIndex = 3
+                                    if '$SK2T' not in ignore_segment_dict[
+                                        (start_sch_list[id1], start_net_list[id1], end_sch_list[id1])] and '$SK2T%d' % (
+                                            skew2target_count + 1) not in ignore_segment_dict[
+                                        (start_sch_list[id1], start_net_list[id1], end_sch_list[id1])]:
+                                        if target_list_all != []:
+                                            result_list.append(act_data_dict[(
+                                                (start_sch_list[id1], start_net_list[id1], end_sch_list[id1]),
+                                                'skew2target%d' % skew2target_count)])
+                                        else:
+                                            result_list.append('NA')
+                                    else:
+                                        result_list.append('NA')
 
-            for idx1 in xrange(len(segment_list)):
-                for idx2 in xrange(len1):
-                    spec_min = spec_min_list[idx1]
-                    spec_max = spec_max_list[idx1]
-                    result_cell_idx = (result_ind2[0] + idx2, result_ind2[1] + result_idx)
+                                    skew2target_count += 1
+
+                                elif segment_list[idx1] == 'Group Mismatch':
+                                    if '$GM' not in ignore_segment_dict[
+                                        (start_sch_list[id1], start_net_list[id1], end_sch_list[id1])] and '$GM%d' % (
+                                            group_mismatch_count + 1) not in ignore_segment_dict[
+                                        (start_sch_list[id1], start_net_list[id1], end_sch_list[id1])]:
+                                        if topology_name_list_all != []:
+                                            result_list.append(act_data_dict[(
+                                                (start_sch_list[id1], start_net_list[id1], end_sch_list[id1]),
+                                                'group_mismatch%d' % group_mismatch_count)])
+                                        else:
+                                            result_list.append('NA')
+                                    else:
+                                        result_list.append('NA')
+                                    group_mismatch_count += 1
+
+                                elif segment_list[idx1] == 'Relative Length Spec(DQS to DQS)':
+                                    result_list.append(act_data_dict[((start_sch_list[id1], start_net_list[id1],
+                                                                       end_sch_list[id1]), 'DQS_TO_DQS')])
+                                elif segment_list[idx1] == 'Relative Length Spec(DQ to DQ)':
+                                    result_list.append(act_data_dict[((start_sch_list[id1], start_net_list[id1],
+                                                                       end_sch_list[id1]), 'DQ_TO_DQ')])
+                                elif segment_list[idx1] == 'Relative Length Spec(DQ to DQS)':
+                                    result_list.append(act_data_dict[((start_sch_list[id1], start_net_list[id1],
+                                                                       end_sch_list[id1]), 'DQ_TO_DQS')])
+                                elif segment_list[idx1] == 'CMD or ADD to CLK Length Matching':
+                                    result_list.append(act_data_dict[((start_sch_list[id1], start_net_list[id1],
+                                                                       end_sch_list[id1]), 'CMD_TO_CLK')])
+                                elif segment_list[idx1] == 'CTL to CLK Length Matching':
+                                    result_list.append(act_data_dict[((start_sch_list[id1], start_net_list[id1],
+                                                                       end_sch_list[id1]), 'CTL_TO_CLK')])
+                                elif segment_list[idx1] == 'DLL Group Length Matching':
+                                    result_list.append(act_data_dict[((start_sch_list[id1], start_net_list[id1],
+                                                                       end_sch_list[id1]), 'DLL_Group')])
+                                elif segment_list[idx1] == 'Result':
+                                    cal_title_list = ['Total Mismatch', 'Layer Mismatch', 'Total Length', 'Via Count',
+                                                      'Result',
+                                                      'Segment Mismatch', 'Skew to Bundle', 'Skew to Target',
+                                                      'Group Mismatch',
+                                                      'Relative Length Spec(DQS to DQS)',
+                                                      'Relative Length Spec(DQ to DQ)',
+                                                      'Relative Length Spec(DQ to DQS)',
+                                                      'CMD or ADD to CLK Length Matching',
+                                                      'CTL to CLK Length Matching', 'DLL Group Length Matching']
+
+                                    total_length_tmp = [result_list[idx_tmp] for idx_tmp in xrange(len(segment_list)) if
+                                                        segment_list[idx_tmp].find('+') == -1 and segment_list[
+                                                            idx_tmp] not in cal_title_list]
+                                    total_length_tmp = sum([float(x) for x in total_length_tmp if isfloat(x)])
+
+                                    if abs(float(
+                                            act_data_dict[
+                                                ((start_sch_list[id1], start_net_list[id1], end_sch_list[id1]),
+                                                 'total_length')]) - total_length_tmp) < 0.01:
+                                        result_list.append('Setting OK')
+                                    else:
+                                        result_list.append('Something Wrong')
+                                elif seg in ['Segment Name', 'Start Segment Name']:
+                                    pass
+                                else:
+                                    result_list.append('NA')
+                        result_dict[(start_sch_list[id1], start_net_list[id1], end_sch_list[id1])] = result_list
+                    else:
+                        result_dict[(start_sch_list[id1], start_net_list[id1], end_sch_list[id1])] = ['NA'] * len(
+                            segment_list)
+
+                if segment_mismatch:
+                    result_dict, color_ind_list = SegmentMismatch(start_sch_list, start_net_list, end_sch_list,
+                                                                  result_dict,
+                                                                  all_width_list, all_layer_list, all_result_list,
+                                                                  segment_out_name_list)
+
+                idx1 = -1
+
+                for idb in xrange(len(start_sch_list)):
+                    idx1 += 1
+                    SetCellBorder(active_sheet, (result_ind2[0] + idx1, result_ind2[1] - 3))
+                    SetCellBorder(active_sheet, (result_ind2[0] + idx1, result_ind2[1] - 2))
+                    SetCellBorder(active_sheet, (result_ind2[0] + idx1, result_ind2[1] - 1))
+                    if result_dict.get((start_sch_list[idb], start_net_list[idb], end_sch_list[idb])) != None:
+                        for idx2 in xrange(
+                                len(result_dict[(start_sch_list[idb], start_net_list[idb], end_sch_list[idb])])):
+                            active_sheet.range((result_ind2[0] + idx1, result_ind2[1] + idx2)).value = \
+                                result_dict[(start_sch_list[idb], start_net_list[idb], end_sch_list[idb])][idx2]
+                if segment_mismatch:
+                    for ind in xrange(len(start_sch_list) / 2):
+                        # 判断颜色
+                        try:
+                            if color_ind_list[ind] == 0:
+                                active_sheet.range(
+                                    (start_ind[0] + 12 + ind * 2, start_ind[1] + se1_ind)).api.Interior.ColorIndex = 4
+                                active_sheet.range(
+                                    (start_ind[0] + 13 + ind * 2, start_ind[1] + se1_ind)).api.Interior.ColorIndex = 4
+                            elif color_ind_list[ind] == 1:
+                                active_sheet.range(
+                                    (start_ind[0] + 12 + ind * 2, start_ind[1] + se1_ind)).api.Interior.ColorIndex = 3
+                                active_sheet.range(
+                                    (start_ind[0] + 13 + ind * 2, start_ind[1] + se1_ind)).api.Interior.ColorIndex = 3
+                        except:
+                            pass
+
+                for idxx in xrange(len(topology_table)):
+                    row_tmp = topology_table[idxx]
+                    if 'Start Segment Name' in row_tmp:
+                        segment_list = topology_table[idxx][3::]
+                        segment_list = [x for x in segment_list if x not in ['', None]]
+                        result_idx = segment_list.index('Result')
+                    elif 'Min' in topology_table[idxx]:
+                        spec_min_list = [str(x) for x in topology_table[idxx][3::]]
+                        spec_min_list = spec_min_list[0:result_idx + 1]
+                    elif 'Max' in row_tmp:
+                        spec_max_list = [str(x) for x in topology_table[idxx][3::]]
+                        spec_max_list = spec_max_list[0:result_idx + 1]
+                len1 = len(active_sheet.range(result_ind1).options(expand='table', ndim=2).value)
+
+                for idx1 in xrange(len1):
+                    result_cell_idx = (result_ind2[0] + idx1, result_ind2[1] + result_idx)
                     if active_sheet.range(result_cell_idx).value != 'Something Wrong':
-                        if isfloat(active_sheet.range((result_ind2[0] + idx2, result_ind2[1] + idx1)).value):
-                            if spec_min == 'NA' and isfloat(spec_max):
-                                if float(active_sheet.range(
-                                        (result_ind2[0] + idx2, result_ind2[1] + idx1)).value) <= float(
+                        active_sheet.range(result_cell_idx).api.Interior.ColorIndex = 4
+                        active_sheet.range(result_cell_idx).value = 'Pass'
+                    elif active_sheet.range(result_cell_idx).value == 'Something Wrong':
+                        active_sheet.range(result_cell_idx).api.Interior.ColorIndex = 3
+                # for idx1 in xrange(int(len1 / 2)):
+                #     result_cell_idx1 = (result_ind2[0] + idx1 * 2, result_ind2[1] + result_idx)
+                #     result_cell_idx2 = (result_ind2[0] + idx1 * 2 + 1, result_ind2[1] + result_idx)
+                #     if active_sheet.range(result_cell_idx1).value != 'Something Wrong' and \
+                #             active_sheet.range(result_cell_idx2).value != 'Something Wrong':
+                #         if color_ind_list != []:
+                #             if color_ind_list[idx1] == 1:
+                #                 active_sheet.range(result_cell_idx1).value = 'Fail'
+                #                 active_sheet.range(result_cell_idx2).value = 'Fail'
+                #                 active_sheet.range(result_cell_idx1).api.Interior.ColorIndex = 3
+                #                 active_sheet.range(result_cell_idx2).api.Interior.ColorIndex = 3
+
+                for idx1 in xrange(len(segment_list)):
+                    for idx2 in xrange(len1):
+                        spec_min = spec_min_list[idx1]
+                        spec_max = spec_max_list[idx1]
+                        result_cell_idx = (result_ind2[0] + idx2, result_ind2[1] + result_idx)
+                        if active_sheet.range(result_cell_idx).value != 'Something Wrong':
+                            if isfloat(active_sheet.range((result_ind2[0] + idx2, result_ind2[1] + idx1)).value):
+                                if spec_min == 'NA' and isfloat(spec_max):
+                                    if float(active_sheet.range(
+                                            (result_ind2[0] + idx2, result_ind2[1] + idx1)).value) <= float(
                                         spec_max):
-                                    active_sheet.range(
-                                        (result_ind2[0] + idx2, result_ind2[1] + idx1)).api.Interior.ColorIndex = 4
-                                else:
-                                    active_sheet.range(
-                                        (result_ind2[0] + idx2, result_ind2[1] + idx1)).api.Interior.ColorIndex = 3
-                                    active_sheet.range(result_cell_idx).api.Interior.ColorIndex = 3
-                                    active_sheet.range(result_cell_idx).value = 'Fail'
-                            elif isfloat(spec_min) and isfloat(spec_max):
-                                if float(spec_min) <= float(
                                         active_sheet.range(
-                                            (result_ind2[0] + idx2, result_ind2[1] + idx1)).value) <= float(spec_max):
-                                    active_sheet.range(
-                                        (result_ind2[0] + idx2, result_ind2[1] + idx1)).api.Interior.ColorIndex = 4
-                                else:
-                                    active_sheet.range(
-                                        (result_ind2[0] + idx2, result_ind2[1] + idx1)).api.Interior.ColorIndex = 3
-                                    active_sheet.range(result_cell_idx).api.Interior.ColorIndex = 3
-                                    active_sheet.range(result_cell_idx).value = 'Fail'
-                            elif isfloat(spec_min) and spec_max == 'NA':
-                                if float(spec_min) <= float(
-                                        active_sheet.range((result_ind2[0] + idx2, result_ind2[1] + idx1)).value):
-                                    active_sheet.range(
-                                        (result_ind2[0] + idx2, result_ind2[1] + idx1)).api.Interior.ColorIndex = 4
-                                else:
-                                    active_sheet.range(
-                                        (result_ind2[0] + idx2, result_ind2[1] + idx1)).api.Interior.ColorIndex = 3
-                                    active_sheet.range(result_cell_idx).api.Interior.ColorIndex = 3
-                                    active_sheet.range(result_cell_idx).value = 'Fail'
-            # Organize the table format
-            table_height = len(topology_table)
-            table_width = len(topology_table[0])
-            result_idx = topology_table[2].index('Result')
+                                            (result_ind2[0] + idx2, result_ind2[1] + idx1)).api.Interior.ColorIndex = 4
+                                    else:
+                                        active_sheet.range(
+                                            (result_ind2[0] + idx2, result_ind2[1] + idx1)).api.Interior.ColorIndex = 3
+                                        active_sheet.range(result_cell_idx).api.Interior.ColorIndex = 3
+                                        active_sheet.range(result_cell_idx).value = 'Fail'
+                                elif isfloat(spec_min) and isfloat(spec_max):
+                                    if float(spec_min) <= float(
+                                            active_sheet.range(
+                                                (result_ind2[0] + idx2, result_ind2[1] + idx1)).value) <= float(
+                                        spec_max):
+                                        active_sheet.range(
+                                            (result_ind2[0] + idx2, result_ind2[1] + idx1)).api.Interior.ColorIndex = 4
+                                    else:
+                                        active_sheet.range(
+                                            (result_ind2[0] + idx2, result_ind2[1] + idx1)).api.Interior.ColorIndex = 3
+                                        active_sheet.range(result_cell_idx).api.Interior.ColorIndex = 3
+                                        active_sheet.range(result_cell_idx).value = 'Fail'
+                                elif isfloat(spec_min) and spec_max == 'NA':
+                                    if float(spec_min) <= float(
+                                            active_sheet.range((result_ind2[0] + idx2, result_ind2[1] + idx1)).value):
+                                        active_sheet.range(
+                                            (result_ind2[0] + idx2, result_ind2[1] + idx1)).api.Interior.ColorIndex = 4
+                                    else:
+                                        active_sheet.range(
+                                            (result_ind2[0] + idx2, result_ind2[1] + idx1)).api.Interior.ColorIndex = 3
+                                        active_sheet.range(result_cell_idx).api.Interior.ColorIndex = 3
+                                        active_sheet.range(result_cell_idx).value = 'Fail'
 
-            start_ind = (cell.row + 2, cell.column + result_idx + 1)
-            end_ind = (
-                cell.row + table_height - 1,
-                cell.column + result_idx + 1 + table_width - (result_idx + 1))
-            active_sheet.range(start_ind, end_ind).clear()
-
-            start_ind = (cell.row, cell.column + 2)
-            end_ind = (cell.row + 1, cell.column + table_width - 1)
-            active_sheet.range(start_ind, end_ind).clear()
-
-            end_ind = (cell.row + 1, cell.column + result_idx)
-            active_sheet.range(start_ind, end_ind).api.MergeCells = True
-
-            for idx in xrange(result_idx - 1):
-                SetCellBorder(active_sheet, (start_ind[0], start_ind[1] + idx))
-                SetCellBorder(active_sheet, (start_ind[0] + 1, start_ind[1] + idx))
+                SetCellFont_current_region(active_sheet, cell_idx, 'Times New Roman', 12, 'l')
+                SetCellBorder_current_region(active_sheet, cell_idx)
+                active_sheet.autofit('c')
 
 
 def RunAllTopologyCheck():
@@ -8138,14 +8989,14 @@ def GenerateSummary():
 
     summary_sheet.range((result_idx[0] + idx + 1, result_idx[1])).value = 'Fail Number:Check Number'
     summary_sheet.range((result_idx[0] + idx + 1, result_idx[1] + 1)).value = '\'%d:%d' % (
-    fail_number, total_check_number)
+        fail_number, total_check_number)
     summary_sheet.range((result_idx[0] + idx + 1, result_idx[1] + 2)).value = '-'
     summary_sheet.range((result_idx[0] + idx + 1, result_idx[1] + 3)).value = '-'
     summary_sheet.range((result_idx[0] + idx + 1, result_idx[1] + 4)).value = '-'
 
     summary_sheet.range((result_idx[0] + idx + 2, result_idx[1])).value = 'Fail Rate'
     summary_sheet.range((result_idx[0] + idx + 2, result_idx[1] + 1)).value = '%.3f' % (
-                float(fail_number) / float(total_check_number) * 100) + '%'
+            float(fail_number) / float(total_check_number) * 100) + '%'
     summary_sheet.range((result_idx[0] + idx + 2, result_idx[1] + 2)).value = '-'
     summary_sheet.range((result_idx[0] + idx + 2, result_idx[1] + 3)).value = '-'
     summary_sheet.range((result_idx[0] + idx + 2, result_idx[1] + 4)).value = '-'
@@ -8211,7 +9062,8 @@ def LoadStackup():
     # 获取报告绝对路径，叠层字典，元件名称列表，progress坐标，叠层名称列表（去重）
     allegro_report_path, layer_type_dict, start_sch_name_list, progress_ind, All_Layer_List = GetSetting()
     # 获取值
-    SCH_brd_data, Net_brd_data, diff_pair_brd_data, stackup_brd_data, npr_brd_data = read_allegro_data(allegro_report_path)
+    SCH_brd_data, Net_brd_data, diff_pair_brd_data, stackup_brd_data, npr_brd_data = read_allegro_data(
+        allegro_report_path)
     layer_list, type_list = getalllayerlist(stackup_brd_data)
 
     for cell in setting_sheet.api.UsedRange.Cells:
@@ -8275,7 +9127,8 @@ def LoadTXList():
         # 获得键
         allegro_report_path, layer_type_dict, start_sch_name_list, progress_ind, All_Layer_List = GetSetting()
         # 获得值
-        SCH_brd_data, Net_brd_data, diff_pair_brd_data, stackup_brd_data, npr_brd_data = read_allegro_data(allegro_report_path)
+        SCH_brd_data, Net_brd_data, diff_pair_brd_data, stackup_brd_data, npr_brd_data = read_allegro_data(
+            allegro_report_path)
         SCH_content = SCH_brd_data.GetData()
 
         SCH_dict = dict()
@@ -9271,12 +10124,12 @@ def count_dimm_length():
 # Command line argument Definition
 if __name__ == '__main__':
 
-    # for i in sys.argv:
-    #     if i.find('.xlsm') > -1:
-    #         xlsm_path = r'%s' % i
-    #         break
-    xlsm_path = r'C:\Users\Tommy\Desktop\Software_project\bug\20190828\D10_SFF3_SIM_Checklist_A1.9_report.xlsm'
-    # xlsm_path = r'C:\Users\Tommy\Desktop\Checklist_case\VINSON_SI_SIM_Checklist_A1.1_20180601.xlsm'
+    for i in sys.argv:
+        if i.find('.xlsm') > -1:
+            xlsm_path = r'%s' % i
+            break
+    # xlsm_path = r'C:\Users\Tommy\Desktop\Software_project\bug\20190828\L_IB460CX_S_PCH_V_2DPC_DT_SIM_Checklist_A1.8_20190827.xlsm'
+    # xlsm_path = r'C:\Users\Tommy\Desktop\Software_project\bug\20190911\Z2_Penghu-ED_CML_WS_4Layer_SIM_Checklist_A1.1_20190715.xlsm'
     # xlsm_path = r'F:\brd_checklist_debug_20190806\Z2_Penghu-ED_CML_WS_4Layer_SIM_Checklist_A1.1_20190715.xlsm'
     Book(xlsm_path).set_mock_caller()
 
@@ -9371,10 +10224,16 @@ if __name__ == '__main__':
         elif i == 'calc_grade':
             load_calc_grade_gui()
             break
+        elif i == 'batch_update':
+            BatchUpdate_Topology()
+            break
 
 # CheckTopology()
+# BatchUpdate_Topology()
 # LoadTopologyFormat_GUI()
-RunSignalTopology()
+# LoadSimpleTopologyFormat()
+# LoadSimpleTopology()
+# RunSignalTopology()
 # load_calc_grade_gui()
 # complete_table_length_item()
 # load_calc_grade_gui()
