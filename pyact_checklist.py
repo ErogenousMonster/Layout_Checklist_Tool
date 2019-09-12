@@ -1924,11 +1924,15 @@ def topology_extract1(net_name, start_sch_name, start_sch_pin=None):
     #     previous_sch_pin_key2 = previous_sch_pin_key2[0][-1]
     #     previous_sch_pin_keys.append(previous_sch_pin_key2)
 
+    # print('start_sch_name', start_sch_name)
+    # print('sch_name_list', sch_name_list)
+    # start_seg_ind1_list = [1]
     while start_sch_name in sch_name_list:
+        start_seg_ind1_list = list()
         # if net_name == 'HDA_BCLK_R' and start_sch_name == 'U3':
         #     # print(2, sch_name_list)
         sch_name_list = [x[0] for x in sch_list]
-        start_seg_ind1_list = list()
+
         for sch in sch_list:
             # if net_name == 'HDA_BCLK_R' and start_sch_name == 'U3':
             #     # print(sch)
@@ -2169,8 +2173,8 @@ def topology_extract2(start_net_name, start_sch_name):
 
     try:
         topology_seg_ind = topology_extract1(start_net_name, start_sch_name, start_sch_pin=None)
-        # # print('topology_seg_ind', topology_seg_ind)
-        # print('topology_seg_ind', topology_seg_ind)
+    # # print('topology_seg_ind', topology_seg_ind)
+    # print('topology_seg_ind', topology_seg_ind)
     except:
         # print('')
         # print('topology_extract1_error')
@@ -2734,10 +2738,15 @@ def topology_list_format_simplified(topology_list):
             topology_list[idx1] = [topology_list[idx1][0], 'via_count %d' % via_count,
                                    'total_length %.3f' % total_length] + topology_list[idx1][1::]
             # # print(2, topology_list)
-
-        if topology_list[idx1][3].find('[') == 0:
+        # print(1, topology_list[idx1][3])
+        topology_1 = copy.deepcopy(topology_list[idx1][3])
+        if topology_1.find('CROSS$') > -1:
+            topology_1 = topology_1[7:]
+        if topology_1.find('$CROSS') > -1:
+            topology_1 = topology_1[:-7]
+        if topology_1.find('[') == 0:
             # 获得信号线起始芯片名并去除[]符号
-            start_sch_name = topology_list[idx1][3].split(':')[0][1:-1]
+            start_sch_name = topology_1.split(':')[0][1:-1]
 
         topology_list[idx1] = [start_sch_name, topology_list[idx1][0], end_sch_name] + topology_list[idx1][1::]
         # # print(3, topology_list)
@@ -3674,7 +3683,7 @@ def RunSignalTopology():
         for check_sch_name in start_sch_name_list:
             check_net_list = get_connected_net_list_by_SCH_name(check_sch_name)
             check_net_list = [x for x in check_net_list if x in total_check_net_list]
-            # check_net_list = ['SPI_MISO']
+            # check_net_list = ['J42_PRSNT2#']
             for check_net_name in check_net_list:
                 try:
                     # 遍历每个器件连接的所有线名
@@ -3716,8 +3725,10 @@ def RunSignalTopology():
                     ok_check_net_list.append(check_net_name)
                     ok_count += 1
                     setting_sheet.range(progress_ind).value = 'Extracting...%d/%d' % (ok_count, total_net_number)
-                except:  # Exception as e:
-                    # # print(e)
+                except:# Exception as e:
+                    # print(check_net_name)
+                    # print(e)
+                    # print('')
                     if check_sch_fail_net_dict.get(check_sch_name) == None:
                         check_sch_fail_net_dict[check_sch_name] = [check_net_name]
                     else:
@@ -4868,10 +4879,10 @@ def CheckTopology(specified_range=None):
                 for x in topology_table[idxx][3::]:
                     spec_max_list.append(str(x))
                 spec_max_list = spec_max_list[0:result_idx + 1]
-        # # print('connect_sch_list', connect_sch_list)
-        # # print('segment_list', segment_list)
-        # # print('trace_width_list', trace_width_list)
-        # # print('layer_change_list', layer_change_list)
+        print('connect_sch_list', connect_sch_list)
+        print('segment_list', segment_list)
+        print('trace_width_list', trace_width_list)
+        print('layer_change_list', layer_change_list)
         # 获取表格类型：differential or single
         signal_type = topology_table[1][1]
         # 数据已经被清空过了，此为多余代码
@@ -5130,9 +5141,9 @@ def CheckTopology(specified_range=None):
             all_width_list.append(half_width_list)
             all_layer_list.append(half_layer_list)
 
-        # # print(1, all_result_list)
-        # # print(2, all_width_list)
-        # # print(3, all_layer_list)
+        # print(1, all_result_list)
+        # print(2, all_width_list)
+        # print(3, all_layer_list)
 
         # Calculate Mismatch for Differential Topology
         if signal_type == 'Differential':
@@ -5185,13 +5196,13 @@ def CheckTopology(specified_range=None):
 
         # 分段索引
         segment_org_name_list = [str(x) for x in xrange(1, len(all_width_list[0]))]
-        # # print('segment_name_list', segment_org_name_list)
+        # print('segment_name_list', segment_org_name_list)
 
         for id1 in xrange(len(start_sch_list)):
-            # # print('start_sch_list', start_sch_list[id1])
+            # print('start_sch_list', start_sch_list[id1])
             idx_all += 1
-            # # print(act_data_dict.get((start_sch_list[id1], start_net_list[id1], end_sch_list[id1])))
-            # # print(act_data_dict)
+            # print(act_data_dict.get((start_sch_list[id1], start_net_list[id1], end_sch_list[id1])))
+            # print(act_data_dict)
             if act_data_dict.get((start_sch_list[id1], start_net_list[id1], end_sch_list[id1])) != None:
                 result_list = list()
                 segment_out_name_list = []
@@ -5206,9 +5217,9 @@ def CheckTopology(specified_range=None):
 
                 group_mismatch_count = 0
                 skew2target_count = 0
-                # # print('act_data', act_data)
+                # print('act_data', act_data)
                 for idx1 in xrange(len(segment_list)):
-                    # # print('segment_list', segment_list[idx1])
+                    # print('segment_list', segment_list[idx1])
                     seg = segment_list[idx1]
 
                     layer_change_count = 0
@@ -5296,11 +5307,11 @@ def CheckTopology(specified_range=None):
                                     # 实际的 trace width 和实际的 layer
                                     trace_width = ['%.3f' % float(x) for x in act_data[idx2].split(':') if isfloat(x)][
                                         0]
-                                    # # print(4, trace_width)
+                                    # print('trace_width', trace_width)
                                     layer = [x for x in act_data[idx2].split(':') if x in All_Layer_List][0]
                                     layer_type = layer_type_dict[layer]
-                                    # # print(5, layer, layer_type)
-                                    # # print(layer_type)
+                                    # print('layer', layer, layer_type)
+                                    # print(layer_type)
                                     # # print(spec_trace_width_list, spec_layer_type_list)
 
                                     # # print(1, act_data[idx2])
@@ -5436,11 +5447,15 @@ def CheckTopology(specified_range=None):
                             if len(act_data) > 0 and ignore_key1 not in ignore_segment_dict[
                                 (start_sch_list[id1], start_net_list[id1], end_sch_list[id1])] and act_data[0].find(
                                 'net$') > -1:
-
-                                result_list.append(act_data[1].split(':')[0][1:-1])
-                                # # print(1, result_list)
+                                # print(act_data)
+                                act_data_1 = copy.deepcopy(act_data[1])
+                                # 防止取到cross
+                                if act_data_1.find(u'CROSS$') > -1:
+                                    act_data_1 = act_data_1[7:]
+                                result_list.append(act_data_1.split(':')[0][1:-1])
+                                # print(1, result_list)
                                 result_list.append(act_data[0][4::])
-                                # # print(2, result_list)
+                                # print(2, result_list)
                                 act_data = act_data[1::]
 
                             else:
@@ -6730,7 +6745,11 @@ def BatchUpdate_Topology(specified_range=None):
                                             0].find(
                                             'net$') > -1:
 
-                                            result_list.append(act_data[1].split(':')[0][1:-1])
+                                            act_data_1 = copy.deepcopy(act_data[1])
+                                            # 防止取到cross
+                                            if act_data_1.find(u'CROSS$') > -1:
+                                                act_data_1 = act_data_1[7:]
+                                            result_list.append(act_data_1.split(':')[0][1:-1])
                                             # # ##print(1, result_list)
                                             result_list.append(act_data[0][4::])
                                             # # ##print(2, result_list)
@@ -7542,8 +7561,11 @@ def BatchUpdate_Topology(specified_range=None):
                                         (start_sch_list[id1], start_net_list[id1], end_sch_list[id1])] and act_data[
                                         0].find(
                                         'net$') > -1:
-
-                                        result_list.append(act_data[1].split(':')[0][1:-1])
+                                        act_data_1 = copy.deepcopy(act_data[1])
+                                        # 防止取到cross
+                                        if act_data_1.find(u'CROSS$') > -1:
+                                            act_data_1 = act_data_1[7:]
+                                        result_list.append(act_data_1.split(':')[0][1:-1])
                                         # # ##print(1, result_list)
                                         result_list.append(act_data[0][4::])
                                         # # ##print(2, result_list)
@@ -8244,8 +8266,8 @@ class LoadCalcGradeForm(QtGui.QDialog):
 
 def CalcGrade(user_defined=False):
     root_path = os.getcwd()
-    # # print(root_path)
-    root_path = '\\\\'.join(root_path[:-5].split('\\'))
+    # print(root_path)
+    root_path = '\\'.join(root_path[:-5].split('\\'))
     parents = os.listdir(root_path)
 
     for parent in parents:
@@ -10129,7 +10151,7 @@ if __name__ == '__main__':
             xlsm_path = r'%s' % i
             break
     # xlsm_path = r'C:\Users\Tommy\Desktop\Software_project\bug\20190828\L_IB460CX_S_PCH_V_2DPC_DT_SIM_Checklist_A1.8_20190827.xlsm'
-    # xlsm_path = r'C:\Users\Tommy\Desktop\Software_project\bug\20190911\Z2_Penghu-ED_CML_WS_4Layer_SIM_Checklist_A1.1_20190715.xlsm'
+    # xlsm_path = r'C:\Users\Tommy\Desktop\Software_project\bug\20190912\PyACT_for_Checklist_template2.0.xlsm'
     # xlsm_path = r'F:\brd_checklist_debug_20190806\Z2_Penghu-ED_CML_WS_4Layer_SIM_Checklist_A1.1_20190715.xlsm'
     Book(xlsm_path).set_mock_caller()
 
@@ -10228,6 +10250,7 @@ if __name__ == '__main__':
             BatchUpdate_Topology()
             break
 
+# load_calc_grade_gui()
 # CheckTopology()
 # BatchUpdate_Topology()
 # LoadTopologyFormat_GUI()
