@@ -209,6 +209,7 @@
 # 2019.08.26 添加topology数据中cross分叉点标示，update check topology中check cross over功能 --Daniel
 # 2019.09.11 更改了两元器件三元器件共Pin的数据出问题的bug ——Gorgeous
 # 2019.09.12 update批量更新功能 ——Kiki
+# 2019.09.19 修正了checklist topology2中的逻辑 ——Gorgeous
 
 
 from xlwings import Book
@@ -2174,7 +2175,7 @@ def topology_extract2(start_net_name, start_sch_name):
     try:
         topology_seg_ind = topology_extract1(start_net_name, start_sch_name, start_sch_pin=None)
     # # print('topology_seg_ind', topology_seg_ind)
-    # print('topology_seg_ind', topology_seg_ind)
+    #     print('topology_seg_ind', topology_seg_ind)
     except:
         # print('')
         # print('topology_extract1_error')
@@ -2236,6 +2237,8 @@ def topology_extract2(start_net_name, start_sch_name):
         # print('first_previous_pin_list1', previous_pin_list1)
         # print('first_previous_sch_pin_list1', previous_sch_pin_list1)
         for ind in xrange(len(sch_nochange_list)):
+            net_list, next_pin_list = [], []
+            sch_list = [sch_nochange_list[ind]]
             next_net, next_pin = net_mapping(sch_nochange_list[ind], pin_list[ind])
             # print('next_net, next_pin', next_net, next_pin)
             # next_net通常为单个线名，下列代码是否可以改写为 if next_net:
@@ -2283,13 +2286,14 @@ def topology_extract2(start_net_name, start_sch_name):
                 i = -1
                 end = True
                 my_flag = 0
-                # # print(1111, topology_list)
+                # print(1111, topology_list)
                 # print('')
                 # print('begin', net_list)
                 # print('begin', sch_list)
                 # print('begin', next_pin_list)
                 for ij1 in xrange(len(net_list)):
                     i += 1
+                    print(i)
                     # print(ij1, net_list[ij1], net_list)
                     # 下段代码为重复代码，可以写成函数简化
                     # 只进入信号线名
@@ -2302,13 +2306,15 @@ def topology_extract2(start_net_name, start_sch_name):
                         #     # print(j,net_list[ij1])
                         #     # print(j,next_pin_list[ij1])
                         #     # print(j,sch_list[ij1])
-
                         try:
+                            #     try:
                             # 找出下一条线的段id
                             # print('before', net_list[ij1], sch_list[ij1], next_pin_list[ij1])
                             # if previous_pin_list:
                             topology_seg_ind = topology_extract1(net_list[ij1], sch_list[ij1],
                                                                  start_sch_pin=next_pin_list[ij1])
+                            # except:
+                            #     break
                             # print('topology_seg_ind', topology_seg_ind)
                             for ind in xrange(len(topology_seg_ind)):
                                 # # print(i, ind, topology_seg_ind[ind])
@@ -3680,10 +3686,12 @@ def RunSignalTopology():
 
         # start_sch_name_list是从setting表中得出的数据，pin脚个数符合的芯片的名称
         # start_sch_name_list = ['U4']
+        # start_sch_name_list = ['J10-1']
         for check_sch_name in start_sch_name_list:
             check_net_list = get_connected_net_list_by_SCH_name(check_sch_name)
             check_net_list = [x for x in check_net_list if x in total_check_net_list]
-            # check_net_list = ['J42_PRSNT2#']
+            # check_net_list = ['USB_P1']
+            # check_net_list = ['USB3_R1_TXDN1']
             for check_net_name in check_net_list:
                 try:
                     # 遍历每个器件连接的所有线名
@@ -3727,7 +3735,7 @@ def RunSignalTopology():
                     setting_sheet.range(progress_ind).value = 'Extracting...%d/%d' % (ok_count, total_net_number)
                 except:# Exception as e:
                     # print(check_net_name)
-                    # print(e)
+                    # # print(e)
                     # print('')
                     if check_sch_fail_net_dict.get(check_sch_name) == None:
                         check_sch_fail_net_dict[check_sch_name] = [check_net_name]
@@ -4879,10 +4887,7 @@ def CheckTopology(specified_range=None):
                 for x in topology_table[idxx][3::]:
                     spec_max_list.append(str(x))
                 spec_max_list = spec_max_list[0:result_idx + 1]
-        print('connect_sch_list', connect_sch_list)
-        print('segment_list', segment_list)
-        print('trace_width_list', trace_width_list)
-        print('layer_change_list', layer_change_list)
+
         # 获取表格类型：differential or single
         signal_type = topology_table[1][1]
         # 数据已经被清空过了，此为多余代码
@@ -4960,18 +4965,26 @@ def CheckTopology(specified_range=None):
         # 获取ACT_diff或ACT_se的数据
         act_content = act_sheet.range('A1').current_region.value
 
-        act_data_dict = dict()
+        act_data_dict = {}
+        cross_data_dict = {}
         # 将表格中的start_sch_name,start_net_name,end_sch_name的数据与ATC_diff,ATC_se比较，看是否存在数据
         # 并将数据赋值给act_data_dict，包含via,total length与分段的详细数据，因为存成dict所以数据顺序不定
         stub_value = []
         for idx123 in xrange(len(start_sch_list)):
-            for line in act_content:
+            for cross_line in act_content:
 
                 # # print(line[0],line[2],line[1])
                 # # print(start_sch_list[idx123], start_net_list[idx123], end_sch_list[idx123])
                 # 如果符合
-                if start_sch_list[idx123] == line[0] and end_sch_list[idx123] == line[2] and start_net_list[idx123] == \
-                        line[1]:
+                if start_sch_list[idx123] == cross_line[0] and end_sch_list[idx123] == cross_line[2] and start_net_list[idx123] == \
+                        cross_line[1]:
+                    line = []
+                    # 删除数据中的cross，以免对其他功能造成影响
+                    for x in cross_line:
+                        if type(x) == type(u'x'):
+                            line.append(re.sub('CROSS\$:|:\$CROSS', '', x))
+                        else:
+                            line.append(x)
                     if act_data_dict.get(
                             (start_sch_list[idx123], start_net_list[idx123], end_sch_list[idx123])) == None:
                         # # print((start_sch_list[idx123], start_net_list[idx123], end_sch_list[idx123]))
@@ -4987,7 +5000,18 @@ def CheckTopology(specified_range=None):
                                                                                                                  x not in [
                                                                                                                      '',
                                                                                                                      None]]
-
+                        cross_data_dict[((start_sch_list[idx123], start_net_list[idx123], end_sch_list[idx123]), 'via')] = \
+                            cross_line[3]
+                        cross_data_dict[
+                            ((start_sch_list[idx123], start_net_list[idx123], end_sch_list[idx123]), 'total_length')] = \
+                            cross_line[4].split()[1]
+                        cross_data_dict[(start_sch_list[idx123], start_net_list[idx123], end_sch_list[idx123])] = [x for x
+                                                                                                                 in
+                                                                                                                   cross_line[
+                                                                                                                 5::] if
+                                                                                                                 x not in [
+                                                                                                                     '',
+                                                                                                                     None]]
                         # 通过过孔via数目判断是否有stub
                         # 对data数据进行处理
                         net_data = act_data_dict[(start_sch_list[idx123], start_net_list[idx123], end_sch_list[idx123])]
@@ -5033,7 +5057,7 @@ def CheckTopology(specified_range=None):
                             stub_value.append(final_stub)
                         else:
                             pass
-
+        # print(act_data_dict)
         if topology_table[0][1] and topology_table[0][1].upper() in ['LOW LOSS', 'MID LOSS']:
             # 获得当前的sheet名称
             active_sheet = wb.sheets.active
@@ -5181,7 +5205,7 @@ def CheckTopology(specified_range=None):
             act_data_dict = GroupMismatch(topology_name_list_all, start_sch_list, start_net_list, end_sch_list,
                                           act_data_dict, act_content)
 
-        # # print(act_data_dict)
+        # print(act_data_dict)
         act_data_layer_list = []
         result_dict = dict()
         check_length_seg_list = list()
@@ -5207,6 +5231,7 @@ def CheckTopology(specified_range=None):
                 result_list = list()
                 segment_out_name_list = []
                 act_data = act_data_dict[(start_sch_list[id1], start_net_list[id1], end_sch_list[id1])]
+                cross_data = cross_data_dict[(start_sch_list[id1], start_net_list[id1], end_sch_list[id1])]
                 act_data_layer_list.append(act_data)
 
                 # # print(11111, act_data)
@@ -5326,6 +5351,7 @@ def CheckTopology(specified_range=None):
                                             pass
 
                                         act_data = act_data[idx2 + 2::]
+                                        cross_data = cross_data[idx2 + 2::]
                                         # # print('act_dataAAAAAAAAAAAAAAAAA', act_data)
                                         # # print(check_connect_sch)
                                         # if connect_sch_spec:
@@ -5405,7 +5431,7 @@ def CheckTopology(specified_range=None):
 
                                         if check_cross_over:
                                             try:
-                                                act_seg_next = act_data[0]
+                                                act_seg_next = cross_data[0]
                                                 if 'CROSS$' in act_seg_next.split(':'):  # f7684584
                                                     cross_over_count += 1
                                                     if cross_over_count == check_cross_over_num:
@@ -5413,7 +5439,7 @@ def CheckTopology(specified_range=None):
                                                         break
 
                                             except:
-                                                if act_data != []:
+                                                if cross_data != []:
                                                     result_list.append('Warning!')
                                                     check_cross_over_wrong = True
                                                     end = True
@@ -10150,7 +10176,7 @@ if __name__ == '__main__':
         if i.find('.xlsm') > -1:
             xlsm_path = r'%s' % i
             break
-    # xlsm_path = r'C:\Users\Tommy\Desktop\Software_project\bug\20190828\L_IB460CX_S_PCH_V_2DPC_DT_SIM_Checklist_A1.8_20190827.xlsm'
+    # xlsm_path = r'C:\Users\Tommy\Desktop\Software_project\bug\20190918\PyACT_for_Checklist_template2.0.xlsm'
     # xlsm_path = r'C:\Users\Tommy\Desktop\Software_project\bug\20190912\PyACT_for_Checklist_template2.0.xlsm'
     # xlsm_path = r'F:\brd_checklist_debug_20190806\Z2_Penghu-ED_CML_WS_4Layer_SIM_Checklist_A1.1_20190715.xlsm'
     Book(xlsm_path).set_mock_caller()
