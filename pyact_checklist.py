@@ -205,11 +205,13 @@
 # 2019.07.09 更新Summary表单，删除重复的错误显示 --kiki
 # 2019.07.15 批量更新Topology --kiki
 # 2019.08.06 添加代码 net_list_temp.append(None) next_pin_list_temp.append(None) ——Daniel
-# 2019.08.10 添代码  topology_out_list.append(topology_list[0])， or next_net[idxx_] == start_net_name，debug ACT Topology 缺少短分支的问题 -- Daniel
+# 2019.08.10 添代码 topology_out_list.append(topology_list[0])， or next_net[idxx_] == start_net_name，debug ACT Topology 缺少短分支的问题 -- Daniel
 # 2019.08.26 添加topology数据中cross分叉点标示，update check topology中check cross over功能 --Daniel
 # 2019.09.11 更改了两元器件三元器件共Pin的数据出问题的bug ——Gorgeous
 # 2019.09.12 update批量更新功能 ——Kiki
 # 2019.09.19 修正了checklist topology2中的逻辑 ——Gorgeous
+# 2019.10.11 修正了都填Y时报错 ——Daniel
+# 2019.10.24 跑DDR时，多pin端只能显示其中之一 ——Gorgeous
 
 
 from xlwings import Book
@@ -2170,7 +2172,7 @@ def topology_extract2(start_net_name, start_sch_name):
     # start_time = time.clock()
     # Initialize
     global All_Net_List, All_Layer_List, non_signal_net_list
-    topology_list = list()
+    topology_list = []
 
     try:
         topology_seg_ind = topology_extract1(start_net_name, start_sch_name, start_sch_pin=None)
@@ -2259,7 +2261,7 @@ def topology_extract2(start_net_name, start_sch_name):
                 if net_list[-1] in non_signal_net_list:
                     topology_list[-1].append(net_list[-1])
 
-            # print('topology_list', topology_list)
+            # print('topology_list_one', topology_list)
             # print('first_net_list', net_list)
             # print('first_next_pin_list', next_pin_list)
             # print('first_sch_list', sch_list)
@@ -2273,10 +2275,13 @@ def topology_extract2(start_net_name, start_sch_name):
             j = -1
 
             pre_net_list = []
-            topology_out_list = [topology_list[0]]  # F7684584
+            topology_out_list = [topology_list[0]]
+            topology_out_flag = False
+            # topology_out_list = []
 
             # Topology Detect for secondary part (net change)
             while end is False:
+                topology_out_flag = True
                 # if start_net_name == 'SUSCLK_M2230' and start_sch_name == 'J38':
                 #     # print(j, end)
                 j += 1
@@ -2293,7 +2298,7 @@ def topology_extract2(start_net_name, start_sch_name):
                 # print('begin', next_pin_list)
                 for ij1 in xrange(len(net_list)):
                     i += 1
-                    print(i)
+                    # print(i)
                     # print(ij1, net_list[ij1], net_list)
                     # 下段代码为重复代码，可以写成函数简化
                     # 只进入信号线名
@@ -2381,7 +2386,7 @@ def topology_extract2(start_net_name, start_sch_name):
                                     for start_ind in xrange(len(net_list_start)):
                                         # 如果回到最初的net_list，意思是转了一圈回来，为了防止无限循环，则退出
                                         if next_net[idxx_] == net_list_start[start_ind] \
-                                                or next_net[idxx_] == start_net_name:  # -F7684584
+                                                or next_net[idxx_] == start_net_name:
                                             # and next_pin[idxx_] == next_pin_list_start[start_ind]\
                                             # and sch_list_temp[idxx_] == sch_list_start[start_ind]:
                                             net_list_temp.append(None)
@@ -2539,8 +2544,8 @@ def topology_extract2(start_net_name, start_sch_name):
             #     # print('ok')
             # # print(sch_list[ind])
             # # print(33333, topology_out_list)
-            # # print('topology_out_list', topology_out_list)
-            if topology_out_list:
+            # print('topology_out_list', topology_out_list)
+            if topology_out_flag:
                 for x in topology_out_list:
                     if x not in topology_return_half_list:
                         topology_return_half_list.append(x)
@@ -3686,12 +3691,12 @@ def RunSignalTopology():
 
         # start_sch_name_list是从setting表中得出的数据，pin脚个数符合的芯片的名称
         # start_sch_name_list = ['U4']
-        # start_sch_name_list = ['J10-1']
+        # start_sch_name_list = ['U40']
         for check_sch_name in start_sch_name_list:
             check_net_list = get_connected_net_list_by_SCH_name(check_sch_name)
             check_net_list = [x for x in check_net_list if x in total_check_net_list]
-            # check_net_list = ['USB_P1']
-            # check_net_list = ['USB3_R1_TXDN1']
+            # check_net_list = ['FPGA_C0_DDR4_A4']
+            # check_net_list = ['USB3_RXDN5']
             for check_net_name in check_net_list:
                 try:
                     # 遍历每个器件连接的所有线名
@@ -3701,6 +3706,7 @@ def RunSignalTopology():
                     # print('')
                     topology_list = topology_extract2(check_net_name, check_sch_name)
                     topology_output_list = []
+                    # print('')
                     # print('topology_list', topology_list)
                     # print('')
                     for x in topology_list:
@@ -4527,6 +4533,7 @@ def CheckTopology(specified_range=None):
 
         return act_data_dict
 
+    # For DDR Check
     def DQSDLLMismatch(start_sch_list, start_net_list, end_sch_list, act_data_dict, DQS_flag=True):
 
         for idx in xrange(int(len(start_net_list) / 2)):
@@ -4856,6 +4863,7 @@ def CheckTopology(specified_range=None):
                 for x in topology_table[idxx][3::]:
                     connect_sch_list.append(str(x))
                 connect_sch_list = connect_sch_list[0:result_idx + 1]
+                # print(connect_sch_list)
             elif 'Cross Over' in row_tmp:
                 cross_over_list = []
                 for x in topology_table[idxx][3::]:
@@ -5175,8 +5183,6 @@ def CheckTopology(specified_range=None):
                 act_data_dict = TotalMismatch(start_sch_list, start_net_list, end_sch_list, act_data_dict)
             if layer_mismatch:
                 act_data_dict = LayerMismatch(start_sch_list, start_net_list, end_sch_list, act_data_dict)
-            # if segment_mismatch:
-            #     act_data_dict = SegmentMismatch(start_sch_list, start_net_list, end_sch_list)
             if bundle_mismatch:
                 act_data_dict = Skew2BundleMismatch(4, start_sch_list, start_net_list, end_sch_list, act_data_dict)
             if DQS_TO_DQS_mismatch:
@@ -5320,6 +5326,7 @@ def CheckTopology(specified_range=None):
                                 break
                             # # print(act_data)
                             for idx2 in xrange(len(act_data)):
+
                                 # # print('ok2')
                                 # # print(1, act_data)
                                 # # print('act_data', act_data)
@@ -5361,34 +5368,42 @@ def CheckTopology(specified_range=None):
                                         # # print(length)
 
                                         if check_connect_sch:
-                                            if connect_sch_spec == 'Y':  # check any connect sch
-                                                # # print('act_dataYYYYYYYYYYYYYY', act_data)
-                                                # # print('act_data[idx2]', act_data[idx2])
-                                                if act_data[idx2].split(':')[-1].find('[') == 0:
-                                                    end = True
-                                                    connect_sch_spec = ''
-                                                    break
-                                            else:  # check specific connect sch with the keyword of sch name
-                                                if connect_sch_spec.find('/') > -1:
-                                                    connect_sch_spec_list = connect_sch_spec.split('/')
-                                                    for sch_tmp1 in connect_sch_spec_list:
-                                                        if sch_tmp1.find('-') > -1:
-                                                            if '[%s]' % sch_tmp1 == act_data[idx2].split(':')[-1]:
-                                                                end = True
-                                                                break
+                                               try:   # for act_data 被check完的情况   -F7684584
+                                                    if connect_sch_spec == 'Y':  # check any connect sch
+                                                        # # print('act_dataYYYYYYYYYYYYYY', act_data)
+                                                        # # print('act_data[idx2]', act_data[idx2])
+                                                        if act_data[idx2].split(':')[0].find('[') == 0:
+                                                            end = True
+                                                            connect_sch_spec = ''
+                                                            break
+                                                    else:  # check specific connect sch with the keyword of sch name
+                                                        if connect_sch_spec.find('/') > -1:
+                                                            connect_sch_spec_list = connect_sch_spec.split('/')
+                                                            for sch_tmp1 in connect_sch_spec_list:
+                                                                if sch_tmp1.find('-') > -1:
+                                                                    if '[%s]' % sch_tmp1 == act_data[idx2].split(':')[0]:
+                                                                        end = True
+                                                                        break
+                                                                else:
+                                                                    if act_seg.split(':')[0].find(sch_tmp1) > -1:
+                                                                        end = True
+                                                                        break
                                                         else:
-                                                            if act_seg.split(':')[-1].find(sch_tmp1) > -1:
-                                                                end = True
-                                                                break
-                                                else:
-                                                    if connect_sch_spec.find('-') > -1:
-                                                        if '[%s]' % connect_sch_spec == act_data[idx2].split(':')[-1]:
-                                                            end = True
-                                                            break
-                                                    else:
-                                                        if act_seg.split(':')[-1].find(connect_sch_spec) > -1:
-                                                            end = True
-                                                            break
+                                                            if connect_sch_spec.find('-') > -1:
+                                                                if '[%s]' % connect_sch_spec == act_data[idx2].split(':')[0]:
+                                                                    end = True
+                                                                    break
+                                                            else:
+                                                                if act_data[idx2].split(':')[0].find(connect_sch_spec) > -1:
+                                                                    end = True
+                                                                    break
+                                               except:  # for act_data 被check完的情况  -F7684584
+                                                   if act_data != []:
+                                                       # 表示抓到下一段net(net name改變), 需示警
+                                                       result_list.append('Warning!')
+                                                       check_layer_change_wrong = True
+                                                       end = True
+                                                       break
 
                                         if check_layer_change:
 
@@ -5476,13 +5491,14 @@ def CheckTopology(specified_range=None):
                                 # print(act_data)
                                 act_data_1 = copy.deepcopy(act_data[1])
                                 # 防止取到cross
-                                if act_data_1.find(u'CROSS$') > -1:
-                                    act_data_1 = act_data_1[7:]
+                                # if act_data_1.find(u'CROSS$') > -1:
+                                #     act_data_1 = act_data_1[7:]
                                 result_list.append(act_data_1.split(':')[0][1:-1])
                                 # print(1, result_list)
                                 result_list.append(act_data[0][4::])
                                 # print(2, result_list)
                                 act_data = act_data[1::]
+                                cross_data = cross_data[1::]   #F7684584 与act_data同步
 
                             else:
                                 result_list.append('NA')
@@ -6230,6 +6246,8 @@ def BatchUpdate_Topology(specified_range=None):
                     for idxx in xrange(len(topology_table)):
                         # print(topology_table)
                         row_tmp = topology_table[idxx]
+                        # print(row_tmp)
+                        # print('')
                         if 'Start Segment Name' in row_tmp:
                             segment_list = topology_table[idxx][3::]
                             segment_list = [x for x in segment_list if x not in ['', None]]
@@ -6252,6 +6270,7 @@ def BatchUpdate_Topology(specified_range=None):
                             for x in topology_table[idxx][3::]:
                                 connect_sch_list.append(str(x))
                             connect_sch_list = connect_sch_list[0:result_idx + 1]
+                            # print(connect_sch_list)
                         elif 'Cross Over' in row_tmp:
                             cross_over_list = []
                             for x in topology_table[idxx][3::]:
@@ -6342,32 +6361,62 @@ def BatchUpdate_Topology(specified_range=None):
 
                     act_content = act_sheet.range('A1').current_region.value  # net name 所有信息
                     # print(act_content)
-                    act_data_dict = dict()
+                    act_data_dict = {}
+                    cross_data_dict = {}
                     stub_value = []
                     for idx123 in xrange(len(start_sch_list)):
-                        for line in act_content:
-                            if start_sch_list[idx123] == line[0] and end_sch_list[idx123] == line[2] and start_net_list[
-                                idx123] == line[1]:
+                        for cross_line in act_content:
+
+                            # # print(line[0],line[2],line[1])
+                            # # print(start_sch_list[idx123], start_net_list[idx123], end_sch_list[idx123])
+                            # 如果符合
+                            if start_sch_list[idx123] == cross_line[0] and end_sch_list[idx123] == cross_line[2] and \
+                                    start_net_list[idx123] == \
+                                    cross_line[1]:
+                                line = []
+                                # 删除数据中的cross，以免对其他功能造成影响
+                                for x in cross_line:
+                                    if type(x) == type(u'x'):
+                                        line.append(re.sub('CROSS\$:|:\$CROSS', '', x))
+                                    else:
+                                        line.append(x)
                                 if act_data_dict.get(
                                         (start_sch_list[idx123], start_net_list[idx123], end_sch_list[idx123])) == None:
-                                    # ##print((start_sch_list[idx123], start_net_list[idx123], end_sch_list[idx123]))
-                                    act_data_dict[
-                                        ((start_sch_list[idx123], start_net_list[idx123], end_sch_list[idx123]),
-                                         'via')] = \
+                                    # # print((start_sch_list[idx123], start_net_list[idx123], end_sch_list[idx123]))
+                                    act_data_dict[(
+                                    (start_sch_list[idx123], start_net_list[idx123], end_sch_list[idx123]), 'via')] = \
                                         line[3]
                                     act_data_dict[
                                         ((start_sch_list[idx123], start_net_list[idx123], end_sch_list[idx123]),
-                                         'total_length')] = line[4].split()[1]
+                                         'total_length')] = \
+                                        line[4].split()[1]
                                     act_data_dict[
                                         (start_sch_list[idx123], start_net_list[idx123], end_sch_list[idx123])] = [x for
-                                                                                                                   x in
+                                                                                                                   x
+                                                                                                                   in
                                                                                                                    line[
                                                                                                                    5::]
                                                                                                                    if
                                                                                                                    x not in [
                                                                                                                        '',
                                                                                                                        None]]
-
+                                    cross_data_dict[(
+                                    (start_sch_list[idx123], start_net_list[idx123], end_sch_list[idx123]), 'via')] = \
+                                        cross_line[3]
+                                    cross_data_dict[
+                                        ((start_sch_list[idx123], start_net_list[idx123], end_sch_list[idx123]),
+                                         'total_length')] = \
+                                        cross_line[4].split()[1]
+                                    cross_data_dict[
+                                        (start_sch_list[idx123], start_net_list[idx123], end_sch_list[idx123])] = [x for
+                                                                                                                   x
+                                                                                                                   in
+                                                                                                                   cross_line[
+                                                                                                                   5::]
+                                                                                                                   if
+                                                                                                                   x not in [
+                                                                                                                       '',
+                                                                                                                       None]]
                                     # 通过过孔via数目判断是否有stub
                                     # 对data数据进行处理
                                     net_data = act_data_dict[
@@ -6375,26 +6424,31 @@ def BatchUpdate_Topology(specified_range=None):
 
                                 if topology_table[0][1] and topology_table[0][1].upper() in ['LOW LOSS', 'MID LOSS']:
                                     if int(line[3].split()[1]) > 0:
-                                        # # ##print(topology_table[0][1])
+                                        # # print(topology_table[0][1])
                                         stub_layer_list = []
                                         for idx in range(len(net_data)):
                                             item = net_data[idx]
                                             if str(item).find(":") > -1:
                                                 stub_layer_list += [x for x in item.split(':') if x in All_Layer_List]
                                         index_list = []
+
                                         for i in range(len(stub_layer_list)):
                                             for j in range(len(layerLength_list)):
                                                 if stub_layer_list[i] == layerLength_list[j].keys()[0]:
-                                                    # # ##print(j)  #具体走线层匹配的索引位置
+                                                    # # print(j)  #具体走线层匹配的索引位置
                                                     # havingLength_layer_list.append({stub_layer_list[i]:layerLength_list[j].values()[0]}) #给对应层匹配相应的长度
                                                     index_list.append(j)
+                                        # # print(index_list) # index_list储存经过层的对应索引
                                         new_index_list = []
                                         new_index_list = sorted(set(index_list))
+                                        # # print(new_index_list) #new_index_list储存 去重并排序后的曾经过的索引
+                                        # # print(layerLength_list)
+                                        # # print(new_index_list)
                                         top_stub = bottom_stub = 0
 
                                         try:
                                             for top_idx in range(1, new_index_list[-2]):
-                                                # print(layerLength_list[top_idx].values()[0])
+                                                # # print(layerLength_list[top_idx].values()[0])
                                                 top_stub += float(layerLength_list[top_idx].values()[0])
                                         except:
                                             pass
@@ -6558,6 +6612,7 @@ def BatchUpdate_Topology(specified_range=None):
                             result_list = list()
                             segment_out_name_list = []
                             act_data = act_data_dict[(start_sch_list[id1], start_net_list[id1], end_sch_list[id1])]
+                            cross_data = cross_data_dict[(start_sch_list[id1], start_net_list[id1], end_sch_list[id1])]
                             act_data_layer_list.append(act_data)
                             length_dict = dict()
                             count1 = 0
@@ -6672,38 +6727,49 @@ def BatchUpdate_Topology(specified_range=None):
                                                     except:
                                                         pass
                                                     act_data = act_data[idx2 + 2::]
+                                                    cross_data = cross_data[idx2 + 2::]
 
                                                     if check_connect_sch:
-                                                        if connect_sch_spec == 'Y':  # check any connect sch
-                                                            if act_data[idx2].split(':')[-1].find('[') == 0:
-                                                                end = True
-                                                                connect_sch_spec = ''
-                                                                break
-                                                        else:  # check specific connect sch with the keyword of sch name
-                                                            if connect_sch_spec.find('/') > -1:
-                                                                connect_sch_spec_list = connect_sch_spec.split('/')
-                                                                for sch_tmp1 in connect_sch_spec_list:
-                                                                    if sch_tmp1.find('-') > -1:
-                                                                        if '[%s]' % sch_tmp1 == \
-                                                                                act_data[idx2].split(':')[-1]:
+                                                        try:  # for act_data 被check完的情况   -F7684584
+                                                            if connect_sch_spec == 'Y':  # check any connect sch
+                                                                # # print('act_dataYYYYYYYYYYYYYY', act_data)
+                                                                # # print('act_data[idx2]', act_data[idx2])
+                                                                if act_data[idx2].split(':')[0].find('[') == 0:
+                                                                    end = True
+                                                                    connect_sch_spec = ''
+                                                                    break
+                                                            else:  # check specific connect sch with the keyword of sch name
+                                                                if connect_sch_spec.find('/') > -1:
+                                                                    connect_sch_spec_list = connect_sch_spec.split('/')
+                                                                    for sch_tmp1 in connect_sch_spec_list:
+                                                                        if sch_tmp1.find('-') > -1:
+                                                                            if '[%s]' % sch_tmp1 == \
+                                                                                    act_data[idx2].split(':')[0]:
+                                                                                end = True
+                                                                                break
+                                                                        else:
+                                                                            if act_seg.split(':')[0].find(
+                                                                                    sch_tmp1) > -1:
+                                                                                end = True
+                                                                                break
+                                                                else:
+                                                                    if connect_sch_spec.find('-') > -1:
+                                                                        if '[%s]' % connect_sch_spec == \
+                                                                                act_data[idx2].split(':')[0]:
                                                                             end = True
                                                                             break
                                                                     else:
-                                                                        if act_seg.split(':')[-1].find(sch_tmp1) > -1:
+                                                                        if act_data[idx2].split(':')[0].find(
+                                                                                connect_sch_spec) > -1:
                                                                             end = True
                                                                             break
-                                                            else:
-                                                                if connect_sch_spec.find('-') > -1:
-                                                                    if '[%s]' % connect_sch_spec == \
-                                                                            act_data[idx2].split(':')[
-                                                                                -1]:
-                                                                        end = True
-                                                                        break
-                                                                else:
-                                                                    if act_seg.split(':')[-1].find(
-                                                                            connect_sch_spec) > -1:
-                                                                        end = True
-                                                                        break
+                                                        except:  # for act_data 被check完的情况  -F7684584
+                                                            if act_data != []:
+                                                                # 表示抓到下一段net(net name改變), 需示警
+                                                                result_list.append('Warning!')
+                                                                check_layer_change_wrong = True
+                                                                end = True
+                                                                break
 
                                                     if check_layer_change:
 
@@ -6730,9 +6796,24 @@ def BatchUpdate_Topology(specified_range=None):
                                                                 end = True
                                                                 break
 
+                                                    # if check_cross_over:
+                                                    #     try:
+                                                    #         act_seg_next = act_data[0]
+                                                    #
+                                                    #         if str(act_seg_next).find('net$') > -1:
+                                                    #             end = True
+                                                    #             break
+                                                    #
+                                                    #     except:
+                                                    #         if act_data != []:
+                                                    #             result_list.append('Warning!')
+                                                    #             check_cross_over_wrong = True
+                                                    #             end = True
+                                                    #             break
+
                                                     if check_cross_over:
                                                         try:
-                                                            act_seg_next = act_data[0]
+                                                            act_seg_next = cross_data[0]
                                                             if 'CROSS$' in act_seg_next.split(':'):  # f7684584
                                                                 cross_over_count += 1
                                                                 if cross_over_count == check_cross_over_num:
@@ -6740,7 +6821,7 @@ def BatchUpdate_Topology(specified_range=None):
                                                                     break
 
                                                         except:
-                                                            if act_data != []:
+                                                            if cross_data != []:
                                                                 result_list.append('Warning!')
                                                                 check_cross_over_wrong = True
                                                                 end = True
@@ -6780,6 +6861,7 @@ def BatchUpdate_Topology(specified_range=None):
                                             result_list.append(act_data[0][4::])
                                             # # ##print(2, result_list)
                                             act_data = act_data[1::]
+                                            cross_data = cross_data[1::]
                                         else:
                                             result_list.append('NA')
                                             result_list.append('NA')
@@ -7095,6 +7177,7 @@ def BatchUpdate_Topology(specified_range=None):
                         for x in topology_table[idxx][3::]:
                             connect_sch_list.append(str(x))
                         connect_sch_list = connect_sch_list[0:result_idx + 1]
+                        print(connect_sch_list)
                     elif 'Cross Over' in row_tmp:
                         cross_over_list = []
                         for x in topology_table[idxx][3::]:
@@ -9760,7 +9843,6 @@ def complete_table_length_item():
         # 为CTL_CMD 创建列表项
         check_CTL_CMD_TabLength(DQ_table_ind, DQ_real_length_list)
 
-
 def check_CTL_CMD_TabLength(start_table_ind, CTL_CMD_real_length_list):
     global tab_length, active_sheet
 
@@ -10176,9 +10258,9 @@ if __name__ == '__main__':
         if i.find('.xlsm') > -1:
             xlsm_path = r'%s' % i
             break
-    # xlsm_path = r'C:\Users\Tommy\Desktop\Software_project\bug\20190918\PyACT_for_Checklist_template2.0.xlsm'
+    # xlsm_path = r'C:\Users\Tommy\Desktop\Software_project\bug\20190924\PyACT_for_Checklist_template2.0.xlsm'
     # xlsm_path = r'C:\Users\Tommy\Desktop\Software_project\bug\20190912\PyACT_for_Checklist_template2.0.xlsm'
-    # xlsm_path = r'F:\brd_checklist_debug_20190806\Z2_Penghu-ED_CML_WS_4Layer_SIM_Checklist_A1.1_20190715.xlsm'
+    # xlsm_path = r'C:\Users\Tommy\Desktop\Software_project\bug\20191023\8K_ENCODER_IO_BOARD_DDR4_Checklist_A1.1_20191021-1400.xlsm'
     Book(xlsm_path).set_mock_caller()
 
     getpinnumio()
