@@ -212,6 +212,8 @@
 # 2019.09.19 修正了checklist topology2中的逻辑 ——Gorgeous
 # 2019.10.11 修正了都填Y时报错 ——Daniel
 # 2019.10.24 跑DDR时，多pin端只能显示其中之一 ——Gorgeous
+# 2019.11.1 加入 AND_LOther_CAP与AMD_LOther_Via 功能 ——Gorgeous
+# 2019.11.1 为了读出一个0.2mil的线将topology_format中的判断通过长度改为0，之前为1（不知道会不会对后续产生影响）——Gorgeous
 
 
 from xlwings import Book
@@ -415,6 +417,8 @@ class TopologyLayoutForm(QtGui.QDialog):
             self.cb8 = QtGui.QCheckBox("Segment Mismatch", self)
             self.cb9 = QtGui.QCheckBox("Total Mismatch", self)
             self.cb10 = QtGui.QCheckBox("DQS To DQS", self)
+            self.cb11 = QtGui.QCheckBox("AMD_LOther_CAP", self)
+            self.cb12 = QtGui.QCheckBox("AMD_LOther_Via", self)
             # self.cb11 = QtGui.QCheckBox("DIMM To DIMM", self)
         else:
             self.cb7 = QtGui.QCheckBox("DQ TO DQ", self)
@@ -454,6 +458,8 @@ class TopologyLayoutForm(QtGui.QDialog):
             layout.addWidget(self.cb8, 3, 2)
             layout.addWidget(self.cb9, 3, 3)
             layout.addWidget(self.cb10, 4, 0)
+            layout.addWidget(self.cb11, 4, 2)
+            layout.addWidget(self.cb12, 4, 3)
         else:
             layout.addWidget(self.cb3, 5, 0)
             layout.addWidget(self.cb7, 4, 0)
@@ -631,6 +637,22 @@ class TopologyLayoutForm(QtGui.QDialog):
                 col_index += 1
                 col_content_list = ['Relative Length Spec(DQS to DQS)', 'NA', 'NA', 'NA', 'NA', 'NA', 'NA', '0', '5',
                                     'Mismatch(mils)']
+                for idx in xrange(len(col_content_list)):
+                    active_sheet.range((start_ind[0] + 2 + idx, col_index)).value = col_content_list[idx]
+                    active_sheet.range((start_ind[0] + 2 + idx, col_index)).api.Interior.Color = RgbColor.rgbLightBlue
+
+            if self.cb11.isChecked():
+                col_index += 1
+                col_content_list = ['AMD_LOther_CAP', 'All', 'N', 'N', 'N', 'All', 'All', '100', 'NA',
+                                    'Length(mils)']
+                for idx in xrange(len(col_content_list)):
+                    active_sheet.range((start_ind[0] + 2 + idx, col_index)).value = col_content_list[idx]
+                    active_sheet.range((start_ind[0] + 2 + idx, col_index)).api.Interior.Color = RgbColor.rgbLightBlue
+
+            if self.cb12.isChecked():
+                col_index += 1
+                col_content_list = ['AMD_LOther_Via', 'All', 'N', 'N', 'N', 'All', 'All', '75', 'NA',
+                                    'Length(mils)']
                 for idx in xrange(len(col_content_list)):
                     active_sheet.range((start_ind[0] + 2 + idx, col_index)).value = col_content_list[idx]
                     active_sheet.range((start_ind[0] + 2 + idx, col_index)).api.Interior.Color = RgbColor.rgbLightBlue
@@ -1708,7 +1730,7 @@ def topology_format(net_name, topology_seg_ind):
 
         # 不懂为什么要将奇偶情况分开讨论
         # 长度大于1才匹配
-        if float(length) > 1:
+        if float(length) > 0:
             items = net.GetConnectedSCHListBySegInd(topology_seg_ind[i])
             # print('items', items)
             if i % 2 == 0:
@@ -2175,8 +2197,8 @@ def topology_extract2(start_net_name, start_sch_name):
     topology_list = []
 
     try:
-        topology_seg_ind = topology_extract1(start_net_name, start_sch_name, start_sch_pin=None)
-    # # print('topology_seg_ind', topology_seg_ind)
+        topology_seg_ind0 = topology_extract1(start_net_name, start_sch_name, start_sch_pin=None)
+        # print('topology_seg_ind', topology_seg_ind)
     #     print('topology_seg_ind', topology_seg_ind)
     except:
         # print('')
@@ -2188,7 +2210,8 @@ def topology_extract2(start_net_name, start_sch_name):
     # # print('etch_line_old1', etch_line_old.conn_schpin)
     topology_return_list = []
     # 显示一根信号线的数据，并指出与之相连的下一根信号线
-    for line in topology_seg_ind:
+    for line in topology_seg_ind0:
+        # line = topology_seg_ind[line_num]
         sch_list, pin_list, net_list, next_pin_list, previous_pin_list1, previous_pin_list2 = [], [], [], [], [], []
 
         # 判断最后一个线名是否与芯片相连接,因为经过过孔或者信号线宽度变化也会分段
@@ -2306,7 +2329,7 @@ def topology_extract2(start_net_name, start_sch_name):
                         etch_line = get_net_object_by_name(net_list[ij1])
 
                         pre_net_list.append(net_list[ij1])
-                        #
+
                         # if start_net_name == 'SPI_SCK':
                         #     # print(j,net_list[ij1])
                         #     # print(j,next_pin_list[ij1])
@@ -2385,8 +2408,7 @@ def topology_extract2(start_net_name, start_sch_name):
                                 for idxx_ in xrange(len(next_net)):
                                     for start_ind in xrange(len(net_list_start)):
                                         # 如果回到最初的net_list，意思是转了一圈回来，为了防止无限循环，则退出
-                                        if next_net[idxx_] == net_list_start[start_ind] \
-                                                or next_net[idxx_] == start_net_name:
+                                        if next_net[idxx_] == start_net_name:  #-f7684584
                                             # and next_pin[idxx_] == next_pin_list_start[start_ind]\
                                             # and sch_list_temp[idxx_] == sch_list_start[start_ind]:
                                             net_list_temp.append(None)
@@ -2494,6 +2516,10 @@ def topology_extract2(start_net_name, start_sch_name):
                 # print('topology_list_final', topology_list)
                 # if start_net_name == 'DPC_AUX_DP_C':
                 #     # print(topology_list)
+                for idx in range(len(net_list_temp)):  # 去掉重复的net -F7684584
+                    if net_list_temp[idx] in pre_net_list:
+                        net_list_temp[idx] = None
+                        next_pin_list_temp[idx] = None
 
                 net_list = list(net_list_temp)
                 # print('last_net_list', net_list)
@@ -2526,10 +2552,11 @@ def topology_extract2(start_net_name, start_sch_name):
                 #     # print(333, sch_list)
                 #     # print(j)
 
+
                 for net in net_list:
-                    if net in pre_net_list:
-                        end = True
-                        break
+                    # if net in pre_net_list:   #???  -F7684584
+                    #     end = True
+                    #     break
                     if net is not None:
                         end = False
                         break
@@ -3690,12 +3717,12 @@ def RunSignalTopology():
         setting_sheet.range(progress_ind).value = 'Extracting...0/%d' % total_net_number
 
         # start_sch_name_list是从setting表中得出的数据，pin脚个数符合的芯片的名称
-        # start_sch_name_list = ['U4']
-        # start_sch_name_list = ['U40']
+        # start_sch_name_list = ['U5']
+        # start_sch_name_list = ['CPU']
         for check_sch_name in start_sch_name_list:
             check_net_list = get_connected_net_list_by_SCH_name(check_sch_name)
             check_net_list = [x for x in check_net_list if x in total_check_net_list]
-            # check_net_list = ['FPGA_C0_DDR4_A4']
+            # check_net_list = ['SMB2SCL']
             # check_net_list = ['USB3_RXDN5']
             for check_net_name in check_net_list:
                 try:
@@ -4642,113 +4669,113 @@ def CheckTopology(specified_range=None):
                                                                                   min(CLK_value_list))), 2)
         return act_data_dict
 
-    # def ForAMD_LOther(start_sch_list, start_net_list, end_sch_list, act_data_dict, CAP_type = None, Length_Type = 'Center'):
-    #
-    #     if CAP_type == None:
-    #         dict_kw = 'AMD_LOther_CAP'
-    #     elif CAP_type == 'PTH':
-    #         dict_kw = 'AMD_LOther_Via'
-    #
-    #
-    #     global SCH_object_list
-    #     def GetConnectedCAPList(topology_list, CAP_type):
-    #         tmp_list = []
-    #         for seg in topology_list:
-    #             if re.findall('\[(.*?)\]', str(seg)):
-    #                 tmp_list.append(seg)
-    #
-    #         connected_sch_list_ = []
-    #         for seg in tmp_list:
-    #             for sch in re.findall('\[(.*?)\]', seg):
-    #                 connected_sch_list_.append(sch.split('-'))
-    #
-    #         connected_cap_list = list()
-    #         for sch, pin in connected_sch_list_:
-    #             sch_obj = get_SCH_object_by_name(sch)
-    #             if re.findall('^CAP_', sch_obj.GetModel()) != []:
-    #                 connected_cap_list.append((sch, pin))
-    #
-    #         return connected_cap_list
-    #     def TwoPointDistance(xy1, xy2):
-    #         return ((float(xy1[0])-float(xy2[0]))**2 + (float(xy1[1])-float(xy2[1]))**2)**0.5
-    #
-    #     diff_list, diff_dict, se_list, non_signal_net_list = GetNetList()
-    #     allegro_report_path, layer_type_dict, start_sch_name_list, progress_ind, All_Layer_List = GetSetting()
-    #     SCH_brd_data, Net_brd_data, diff_pair_brd_data, stackup_brd_data = read_allegro_data(allegro_report_path)
-    #     SCH_object_list = SCH_detect(SCH_brd_data)
-    #
-    #     if len(start_net_list) >= 2 and len(start_net_list)%2 == 0:
-    #         for idx in xrange(len(start_net_list)):
-    #             check_net = start_net_list[idx]
-    #             topology_list_check = act_data_dict[(start_sch_list[idx], start_net_list[idx], end_sch_list[idx])]
-    #             connected_cap_list_check = GetConnectedCAPList(topology_list_check, CAP_type)
-    #
-    #             start_net_idx_list_target = []
-    #             for idx_ in xrange(len(start_net_list)):
-    #                 if start_net_list[idx_] not in [check_net, diff_dict[check_net]]:
-    #                     start_net_idx_list_target.append(idx_)
-    #
-    #             start_net_list_target = []
-    #             start_sch_list_target = []
-    #             end_sch_list_target = []
-    #             for idx_ in start_net_idx_list_target:
-    #                 start_net_list_target.append(start_net_list[idx_])
-    #                 start_sch_list_target.append(start_sch_list[idx_])
-    #                 end_sch_list_target.append(end_sch_list[idx_])
-    #
-    #
-    #             connected_cap_list_all_target = list()
-    #             for i12 in xrange(len(start_sch_list_target)):
-    #                 topology_list = act_data_dict[(start_sch_list_target[i12], start_net_list_target[i12], end_sch_list_target[i12])]
-    #                 connected_cap_list = GetConnectedCAPList(topology_list, CAP_type)
-    #                 connected_cap_list_all_target += connected_cap_list
-    #
-    #             dis_list = list()
-    #
-    #             if Length_Type == 'Center':
-    #                 for sch, pin in connected_cap_list_check:
-    #                     cap_obj1 = get_SCH_object_by_name(sch)
-    #                     if len(cap_obj1.GetPinList()) == 2:
-    #                         xy_list = []
-    #                         for pin in cap_obj1.GetPinList():
-    #                             xy_list.append(cap_obj1.GetXY(pin))
-    #                         xy_center1 = ((float(xy_list[0][0])+float(xy_list[1][0]))/2, (float(xy_list[0][1])+float(xy_list[1][1]))/2)
-    #                         for sch_, pin_ in connected_cap_list_all_target:
-    #                             cap_obj2 = get_SCH_object_by_name(sch_)
-    #                             if len(cap_obj2.GetPinList()) == 2:
-    #                                 xy_list = []
-    #                                 for pin in cap_obj2.GetPinList():
-    #                                     xy_list.append(cap_obj2.GetXY(pin))
-    #                                 xy_center2 = ((float(xy_list[0][0])+float(xy_list[1][0]))/2, (float(xy_list[0][1])+float(xy_list[1][1]))/2)
-    #
-    #                                 dis_list.append(TwoPointDistance(xy_center1, xy_center2))
-    #             elif Length_Type == 'Pin2Pin':
-    #                 for sch, pin in connected_cap_list_check:
-    #                     cap_obj1 = get_SCH_object_by_name(sch)
-    #                     if len(cap_obj1.GetPinList()) == 2:
-    #                         xy_list1 = []
-    #                         for pin in cap_obj1.GetPinList():
-    #                             xy_list1.append(cap_obj1.GetXY(pin))
-    #                         for sch_, pin_ in connected_cap_list_all_target:
-    #                             cap_obj2 = get_SCH_object_by_name(sch_)
-    #                             if len(cap_obj2.GetPinList()) == 2:
-    #                                 xy_list2 = []
-    #                                 for pin in cap_obj2.GetPinList():
-    #                                     xy_list2.append(cap_obj2.GetXY(pin))
-    #                                 dis_list += [TwoPointDistance(xy1, xy2) for xy1 in xy_list1 for xy2 in xy_list2]
-    #
-    #             if dis_list == []:
-    #                 act_data_dict[((start_sch_list[idx], start_net_list[idx], end_sch_list[idx]),dict_kw)] = 'NA'
-    #             else:
-    #                 act_data_dict[((start_sch_list[idx], start_net_list[idx], end_sch_list[idx]),dict_kw)] = '%.3f'%min(dis_list)
-    #
-    #
-    #     else:
-    #         for idx in xrange(len(start_net_list)):
-    #             act_data_dict[((start_sch_list[idx], start_net_list[idx], end_sch_list[idx]),dict_kw)] = 'NA'
-    #
-    #     return act_data_dict
-    ########################  Run
+    def ForAMD_LOther(start_sch_list, start_net_list, end_sch_list, act_data_dict, CAP_type = None, Length_Type = 'Center'):
+
+        if CAP_type == None:
+            dict_kw = 'AMD_LOther_CAP'
+        elif CAP_type == 'PTH':
+            dict_kw = 'AMD_LOther_Via'
+
+
+        global SCH_object_list
+        def GetConnectedCAPList(topology_list, CAP_type):
+            tmp_list = []
+            for seg in topology_list:
+                if re.findall('\[(.*?)\]', str(seg)):
+                    tmp_list.append(seg)
+
+            connected_sch_list_ = []
+            for seg in tmp_list:
+                for sch in re.findall('\[(.*?)\]', seg):
+                    sch_pin_list = sch.split('-')
+                    connected_sch_list_.append(['-'.join(sch_pin_list[:-1]), sch_pin_list[-1]])
+            connected_cap_list = list()
+            for sch, pin in connected_sch_list_:
+                sch_obj = get_SCH_object_by_name(sch)
+                if re.findall('^CAP_', sch_obj.GetModel()) != []:
+                    connected_cap_list.append((sch, pin))
+
+            return connected_cap_list
+        def TwoPointDistance(xy1, xy2):
+            return ((float(xy1[0])-float(xy2[0]))**2 + (float(xy1[1])-float(xy2[1]))**2)**0.5
+
+        diff_list, diff_dict, se_list, non_signal_net_list = GetNetList()
+        allegro_report_path, layer_type_dict, start_sch_name_list, progress_ind, All_Layer_List = GetSetting()
+        SCH_brd_data, Net_brd_data, diff_pair_brd_data, stackup_brd_data, npr_brd_data  = read_allegro_data(allegro_report_path)
+        SCH_object_list = SCH_detect(SCH_brd_data)
+
+        if len(start_net_list) >= 2 and len(start_net_list)%2 == 0:
+            for idx in xrange(len(start_net_list)):
+                check_net = start_net_list[idx]
+                topology_list_check = act_data_dict[(start_sch_list[idx], start_net_list[idx], end_sch_list[idx])]
+                connected_cap_list_check = GetConnectedCAPList(topology_list_check, CAP_type)
+
+                start_net_idx_list_target = []
+                for idx_ in xrange(len(start_net_list)):
+                    if start_net_list[idx_] not in [check_net, diff_dict[check_net]]:
+                        start_net_idx_list_target.append(idx_)
+
+                start_net_list_target = []
+                start_sch_list_target = []
+                end_sch_list_target = []
+                for idx_ in start_net_idx_list_target:
+                    start_net_list_target.append(start_net_list[idx_])
+                    start_sch_list_target.append(start_sch_list[idx_])
+                    end_sch_list_target.append(end_sch_list[idx_])
+
+
+                connected_cap_list_all_target = list()
+                for i12 in xrange(len(start_sch_list_target)):
+                    topology_list = act_data_dict[(start_sch_list_target[i12], start_net_list_target[i12], end_sch_list_target[i12])]
+                    connected_cap_list = GetConnectedCAPList(topology_list, CAP_type)
+                    connected_cap_list_all_target += connected_cap_list
+
+                dis_list = list()
+
+                if Length_Type == 'Center':
+                    for sch, pin in connected_cap_list_check:
+                        cap_obj1 = get_SCH_object_by_name(sch)
+                        if len(cap_obj1.GetPinList()) == 2:
+                            xy_list = []
+                            for pin in cap_obj1.GetPinList():
+                                xy_list.append(cap_obj1.GetXY(pin))
+                            xy_center1 = ((float(xy_list[0][0])+float(xy_list[1][0]))/2, (float(xy_list[0][1])+float(xy_list[1][1]))/2)
+                            for sch_, pin_ in connected_cap_list_all_target:
+                                cap_obj2 = get_SCH_object_by_name(sch_)
+                                if len(cap_obj2.GetPinList()) == 2:
+                                    xy_list = []
+                                    for pin in cap_obj2.GetPinList():
+                                        xy_list.append(cap_obj2.GetXY(pin))
+                                    xy_center2 = ((float(xy_list[0][0])+float(xy_list[1][0]))/2, (float(xy_list[0][1])+float(xy_list[1][1]))/2)
+
+                                    dis_list.append(TwoPointDistance(xy_center1, xy_center2))
+                elif Length_Type == 'Pin2Pin':
+                    for sch, pin in connected_cap_list_check:
+                        cap_obj1 = get_SCH_object_by_name(sch)
+                        if len(cap_obj1.GetPinList()) == 2:
+                            xy_list1 = []
+                            for pin in cap_obj1.GetPinList():
+                                xy_list1.append(cap_obj1.GetXY(pin))
+                            for sch_, pin_ in connected_cap_list_all_target:
+                                cap_obj2 = get_SCH_object_by_name(sch_)
+                                if len(cap_obj2.GetPinList()) == 2:
+                                    xy_list2 = []
+                                    for pin in cap_obj2.GetPinList():
+                                        xy_list2.append(cap_obj2.GetXY(pin))
+                                    dis_list += [TwoPointDistance(xy1, xy2) for xy1 in xy_list1 for xy2 in xy_list2]
+
+                if dis_list == []:
+                    act_data_dict[((start_sch_list[idx], start_net_list[idx], end_sch_list[idx]),dict_kw)] = 'NA'
+                else:
+                    act_data_dict[((start_sch_list[idx], start_net_list[idx], end_sch_list[idx]),dict_kw)] = '%.3f'%min(dis_list)
+
+
+        else:
+            for idx in xrange(len(start_net_list)):
+                act_data_dict[((start_sch_list[idx], start_net_list[idx], end_sch_list[idx]),dict_kw)] = 'NA'
+
+        return act_data_dict
+    #######################  Run
     # 清空原先生成数据表格
 
     ClearCheckResults(specified_range=specified_range)
@@ -4933,7 +4960,7 @@ def CheckTopology(specified_range=None):
             = False, False, False, False, False
         DQ_TO_DQ_mismatch, DQ_TO_DQS_mismatch, CMD_mismatch, CTL_mismatch, DLL_mismatch \
             = False, False, False, False, False
-        # amd_lother_cap, amd_lother_via = False, False
+        amd_lother_cap, amd_lother_via = False, False
 
         # Extract the ACT data
         if signal_type == 'Differential':
@@ -4949,10 +4976,10 @@ def CheckTopology(specified_range=None):
             # 下面两个是什么,暂时没有用到
             # 少了 skew to Target 与 group mismatch
             ##############################
-            # if 'AMD_LOther_CAP' in segment_list:
-            #     amd_lother_cap = True
-            # if 'AMD_LOther_Via' in segment_list:
-            #     amd_lother_via = True
+            if 'AMD_LOther_CAP' in segment_list:
+                amd_lother_cap = True
+            if 'AMD_LOther_Via' in segment_list:
+                amd_lother_via = True
             ##############################
 
             if 'Relative Length Spec(DQS to DQS)' in segment_list:
@@ -5187,10 +5214,10 @@ def CheckTopology(specified_range=None):
                 act_data_dict = Skew2BundleMismatch(4, start_sch_list, start_net_list, end_sch_list, act_data_dict)
             if DQS_TO_DQS_mismatch:
                 act_data_dict = DQSDLLMismatch(start_sch_list, start_net_list, end_sch_list, act_data_dict)
-            # if amd_lother_cap:
-            #     act_data_dict = ForAMD_LOther(start_sch_list, start_net_list, end_sch_list, act_data_dict)
-            # if amd_lother_via:
-            #     act_data_dict = ForAMD_LOther(start_sch_list, start_net_list, end_sch_list, act_data_dict, CAP_type = 'PTH', Length_Type = 'Pin2Pin')
+            if amd_lother_cap:
+                act_data_dict = ForAMD_LOther(start_sch_list, start_net_list, end_sch_list, act_data_dict)
+            if amd_lother_via:
+                act_data_dict = ForAMD_LOther(start_sch_list, start_net_list, end_sch_list, act_data_dict, CAP_type = 'PTH', Length_Type = 'Pin2Pin')
         else:
             if DQ_TO_DQ_mismatch:
                 act_data_dict = DQTODQMismatch(start_sch_list, start_net_list, end_sch_list, act_data_dict)
@@ -5385,7 +5412,7 @@ def CheckTopology(specified_range=None):
                                                                         end = True
                                                                         break
                                                                 else:
-                                                                    if act_seg.split(':')[0].find(sch_tmp1) > -1:
+                                                                    if act_data[idx2].split(':')[0].find(sch_tmp1) > -1:
                                                                         end = True
                                                                         break
                                                         else:
@@ -5607,17 +5634,18 @@ def CheckTopology(specified_range=None):
                                                                end_sch_list[id1]), 'DLL_Group')])
 
 
-                        # elif segment_list[idx1] == 'AMD_LOther_CAP':
-                        #     result_list.append(act_data_dict[((start_sch_list[id1], start_net_list[id1], end_sch_list[id1]),'AMD_LOther_CAP')])
-                        # elif seg == 'AMD_LOther_Via':
-                        #     result_list.append(act_data_dict[((start_sch_list[id1], start_net_list[id1], end_sch_list[id1]),'AMD_LOther_Via')])
+                        elif segment_list[idx1] == 'AMD_LOther_CAP':
+                            result_list.append(act_data_dict[((start_sch_list[id1], start_net_list[id1], end_sch_list[id1]),'AMD_LOther_CAP')])
+                        elif seg == 'AMD_LOther_Via':
+                            result_list.append(act_data_dict[((start_sch_list[id1], start_net_list[id1], end_sch_list[id1]),'AMD_LOther_Via')])
                         elif segment_list[idx1] == 'Result':
 
                             cal_title_list = ['Total Mismatch', 'Layer Mismatch', 'Total Length', 'Via Count', 'Result',
                                               'Segment Mismatch', 'Skew to Bundle', 'Skew to Target', 'Group Mismatch',
                                               'Relative Length Spec(DQS to DQS)', 'Relative Length Spec(DQ to DQ)',
                                               'Relative Length Spec(DQ to DQS)', 'CMD or ADD to CLK Length Matching',
-                                              'CTL to CLK Length Matching', 'DLL Group Length Matching']
+                                              'CTL to CLK Length Matching', 'DLL Group Length Matching',
+                                              'AMD_LOther_CAP', 'AMD_LOther_Via']
 
                             total_length_tmp = [result_list[idx_tmp] for idx_tmp in xrange(len(segment_list)) if
                                                 segment_list[idx_tmp].find('+') == -1 and segment_list[
@@ -6178,6 +6206,113 @@ def BatchUpdate_Topology(specified_range=None):
                                                                                   min(CLK_value_list))), 2)
         return act_data_dict
 
+    def ForAMD_LOther(start_sch_list, start_net_list, end_sch_list, act_data_dict, CAP_type = None, Length_Type = 'Center'):
+
+        if CAP_type == None:
+            dict_kw = 'AMD_LOther_CAP'
+        elif CAP_type == 'PTH':
+            dict_kw = 'AMD_LOther_Via'
+
+
+        global SCH_object_list
+        def GetConnectedCAPList(topology_list, CAP_type):
+            tmp_list = []
+            for seg in topology_list:
+                if re.findall('\[(.*?)\]', str(seg)):
+                    tmp_list.append(seg)
+
+            connected_sch_list_ = []
+            for seg in tmp_list:
+                for sch in re.findall('\[(.*?)\]', seg):
+                    connected_sch_list_.append(sch.split('-'))
+
+            connected_cap_list = list()
+            for sch, pin in connected_sch_list_:
+                sch_obj = get_SCH_object_by_name(sch)
+                if re.findall('^CAP_', sch_obj.GetModel()) != []:
+                    connected_cap_list.append((sch, pin))
+
+            return connected_cap_list
+        def TwoPointDistance(xy1, xy2):
+            return ((float(xy1[0])-float(xy2[0]))**2 + (float(xy1[1])-float(xy2[1]))**2)**0.5
+
+        diff_list, diff_dict, se_list, non_signal_net_list = GetNetList()
+        allegro_report_path, layer_type_dict, start_sch_name_list, progress_ind, All_Layer_List = GetSetting()
+        SCH_brd_data, Net_brd_data, diff_pair_brd_data, stackup_brd_data, npr_brd_data  = read_allegro_data(allegro_report_path)
+        SCH_object_list = SCH_detect(SCH_brd_data)
+
+        if len(start_net_list) >= 2 and len(start_net_list)%2 == 0:
+            for idx in xrange(len(start_net_list)):
+                check_net = start_net_list[idx]
+                topology_list_check = act_data_dict[(start_sch_list[idx], start_net_list[idx], end_sch_list[idx])]
+                connected_cap_list_check = GetConnectedCAPList(topology_list_check, CAP_type)
+
+                start_net_idx_list_target = []
+                for idx_ in xrange(len(start_net_list)):
+                    if start_net_list[idx_] not in [check_net, diff_dict[check_net]]:
+                        start_net_idx_list_target.append(idx_)
+
+                start_net_list_target = []
+                start_sch_list_target = []
+                end_sch_list_target = []
+                for idx_ in start_net_idx_list_target:
+                    start_net_list_target.append(start_net_list[idx_])
+                    start_sch_list_target.append(start_sch_list[idx_])
+                    end_sch_list_target.append(end_sch_list[idx_])
+
+
+                connected_cap_list_all_target = list()
+                for i12 in xrange(len(start_sch_list_target)):
+                    topology_list = act_data_dict[(start_sch_list_target[i12], start_net_list_target[i12], end_sch_list_target[i12])]
+                    connected_cap_list = GetConnectedCAPList(topology_list, CAP_type)
+                    connected_cap_list_all_target += connected_cap_list
+
+                dis_list = list()
+
+                if Length_Type == 'Center':
+                    for sch, pin in connected_cap_list_check:
+                        cap_obj1 = get_SCH_object_by_name(sch)
+                        if len(cap_obj1.GetPinList()) == 2:
+                            xy_list = []
+                            for pin in cap_obj1.GetPinList():
+                                xy_list.append(cap_obj1.GetXY(pin))
+                            xy_center1 = ((float(xy_list[0][0])+float(xy_list[1][0]))/2, (float(xy_list[0][1])+float(xy_list[1][1]))/2)
+                            for sch_, pin_ in connected_cap_list_all_target:
+                                cap_obj2 = get_SCH_object_by_name(sch_)
+                                if len(cap_obj2.GetPinList()) == 2:
+                                    xy_list = []
+                                    for pin in cap_obj2.GetPinList():
+                                        xy_list.append(cap_obj2.GetXY(pin))
+                                    xy_center2 = ((float(xy_list[0][0])+float(xy_list[1][0]))/2, (float(xy_list[0][1])+float(xy_list[1][1]))/2)
+
+                                    dis_list.append(TwoPointDistance(xy_center1, xy_center2))
+                elif Length_Type == 'Pin2Pin':
+                    for sch, pin in connected_cap_list_check:
+                        cap_obj1 = get_SCH_object_by_name(sch)
+                        if len(cap_obj1.GetPinList()) == 2:
+                            xy_list1 = []
+                            for pin in cap_obj1.GetPinList():
+                                xy_list1.append(cap_obj1.GetXY(pin))
+                            for sch_, pin_ in connected_cap_list_all_target:
+                                cap_obj2 = get_SCH_object_by_name(sch_)
+                                if len(cap_obj2.GetPinList()) == 2:
+                                    xy_list2 = []
+                                    for pin in cap_obj2.GetPinList():
+                                        xy_list2.append(cap_obj2.GetXY(pin))
+                                    dis_list += [TwoPointDistance(xy1, xy2) for xy1 in xy_list1 for xy2 in xy_list2]
+
+                if dis_list == []:
+                    act_data_dict[((start_sch_list[idx], start_net_list[idx], end_sch_list[idx]),dict_kw)] = 'NA'
+                else:
+                    act_data_dict[((start_sch_list[idx], start_net_list[idx], end_sch_list[idx]),dict_kw)] = '%.3f'%min(dis_list)
+
+
+        else:
+            for idx in xrange(len(start_net_list)):
+                act_data_dict[((start_sch_list[idx], start_net_list[idx], end_sch_list[idx]),dict_kw)] = 'NA'
+
+        return act_data_dict
+
     ClearCheckResults(specified_range=specified_range)
     wb = Book(xlsm_path).caller()
     active_sheet = wb.sheets.active
@@ -6334,6 +6469,7 @@ def BatchUpdate_Topology(specified_range=None):
                         = False, False, False, False, False
                     DQ_TO_DQ_mismatch, DQ_TO_DQS_mismatch, CMD_mismatch, CTL_mismatch, DLL_mismatch \
                         = False, False, False, False, False
+                    amd_lother_cap, amd_lother_via = False, False
                     if signal_type == 'Differential':
                         act_sheet = wb.sheets['ACT_diff']
                         if 'Layer Mismatch' in segment_list:
@@ -6346,6 +6482,10 @@ def BatchUpdate_Topology(specified_range=None):
                             total_mismatch = True
                         if 'Relative Length Spec(DQS to DQS)' in segment_list:
                             DQS_TO_DQS_mismatch = True
+                        if 'AMD_LOther_CAP' in segment_list:
+                            amd_lother_cap = True
+                        if 'AMD_LOther_Via' in segment_list:
+                            amd_lother_via = True
                     elif signal_type == 'Single-ended':
                         act_sheet = wb.sheets['ACT_se']
                         if 'Relative Length Spec(DQ to DQ)' in segment_list:
@@ -6571,10 +6711,10 @@ def BatchUpdate_Topology(specified_range=None):
                                                                 act_data_dict)
                         if DQS_TO_DQS_mismatch:
                             act_data_dict = DQSDLLMismatch(start_sch_list, start_net_list, end_sch_list, act_data_dict)
-                        # if amd_lother_cap:
-                        #     act_data_dict = ForAMD_LOther(start_sch_list, start_net_list, end_sch_list, act_data_dict)
-                        # if amd_lother_via:
-                        #     act_data_dict = ForAMD_LOther(start_sch_list, start_net_list, end_sch_list, act_data_dict, CAP_type = 'PTH', Length_Type = 'Pin2Pin')
+                        if amd_lother_cap:
+                            act_data_dict = ForAMD_LOther(start_sch_list, start_net_list, end_sch_list, act_data_dict)
+                        if amd_lother_via:
+                            act_data_dict = ForAMD_LOther(start_sch_list, start_net_list, end_sch_list, act_data_dict, CAP_type = 'PTH', Length_Type = 'Pin2Pin')
                     else:
                         if DQ_TO_DQ_mismatch:
                             act_data_dict = DQTODQMismatch(start_sch_list, start_net_list, end_sch_list, act_data_dict)
@@ -6648,7 +6788,6 @@ def BatchUpdate_Topology(specified_range=None):
                                     spec_layer_type_list = layer_list[idx1]
 
                                     try:
-                                        # # ##print('connect_sch_list[idx1]', connect_sch_list[idx1])
                                         if connect_sch_list[idx1] not in ['N', 'NA', 'None', 'All',
                                                                           'Connect Component']:
                                             check_connect_sch = True
@@ -6748,7 +6887,7 @@ def BatchUpdate_Topology(specified_range=None):
                                                                                 end = True
                                                                                 break
                                                                         else:
-                                                                            if act_seg.split(':')[0].find(
+                                                                            if act_data[idx2].split(':')[0].find(
                                                                                     sch_tmp1) > -1:
                                                                                 end = True
                                                                                 break
@@ -6961,6 +7100,14 @@ def BatchUpdate_Topology(specified_range=None):
                                     elif segment_list[idx1] == 'DLL Group Length Matching':
                                         result_list.append(act_data_dict[((start_sch_list[id1], start_net_list[id1],
                                                                            end_sch_list[id1]), 'DLL_Group')])
+                                    elif segment_list[idx1] == 'AMD_LOther_CAP':
+                                        result_list.append(act_data_dict[(
+                                        (start_sch_list[id1], start_net_list[id1], end_sch_list[id1]),
+                                        'AMD_LOther_CAP')])
+                                    elif seg == 'AMD_LOther_Via':
+                                        result_list.append(act_data_dict[(
+                                        (start_sch_list[id1], start_net_list[id1], end_sch_list[id1]),
+                                        'AMD_LOther_Via')])
                                     elif segment_list[idx1] == 'Result':
                                         cal_title_list = ['Total Mismatch', 'Layer Mismatch', 'Total Length',
                                                           'Via Count',
@@ -6971,7 +7118,8 @@ def BatchUpdate_Topology(specified_range=None):
                                                           'Relative Length Spec(DQ to DQ)',
                                                           'Relative Length Spec(DQ to DQS)',
                                                           'CMD or ADD to CLK Length Matching',
-                                                          'CTL to CLK Length Matching', 'DLL Group Length Matching']
+                                                          'CTL to CLK Length Matching', 'DLL Group Length Matching',
+                                                          'AMD_LOther_CAP', 'AMD_LOther_Via']
 
                                         total_length_tmp = [result_list[idx_tmp] for idx_tmp in
                                                             xrange(len(segment_list)) if
@@ -7240,6 +7388,7 @@ def BatchUpdate_Topology(specified_range=None):
                     = False, False, False, False, False
                 DQ_TO_DQ_mismatch, DQ_TO_DQS_mismatch, CMD_mismatch, CTL_mismatch, DLL_mismatch \
                     = False, False, False, False, False
+                amd_lother_cap, amd_lother_via = False, False
                 if signal_type == 'Differential':
                     act_sheet = wb.sheets['ACT_diff']
                     if 'Layer Mismatch' in segment_list:
@@ -7252,6 +7401,10 @@ def BatchUpdate_Topology(specified_range=None):
                         total_mismatch = True
                     if 'Relative Length Spec(DQS to DQS)' in segment_list:
                         DQS_TO_DQS_mismatch = True
+                    if 'AMD_LOther_CAP' in segment_list:
+                        amd_lother_cap = True
+                    if 'AMD_LOther_Via' in segment_list:
+                        amd_lother_via = True
                 elif signal_type == 'Single-ended':
                     act_sheet = wb.sheets['ACT_se']
                     if 'Relative Length Spec(DQ to DQ)' in segment_list:
@@ -7433,10 +7586,10 @@ def BatchUpdate_Topology(specified_range=None):
                                                             act_data_dict)
                     if DQS_TO_DQS_mismatch:
                         act_data_dict = DQSDLLMismatch(start_sch_list, start_net_list, end_sch_list, act_data_dict)
-                    # if amd_lother_cap:
-                    #     act_data_dict = ForAMD_LOther(start_sch_list, start_net_list, end_sch_list, act_data_dict)
-                    # if amd_lother_via:
-                    #     act_data_dict = ForAMD_LOther(start_sch_list, start_net_list, end_sch_list, act_data_dict, CAP_type = 'PTH', Length_Type = 'Pin2Pin')
+                    if amd_lother_cap:
+                        act_data_dict = ForAMD_LOther(start_sch_list, start_net_list, end_sch_list, act_data_dict)
+                    if amd_lother_via:
+                        act_data_dict = ForAMD_LOther(start_sch_list, start_net_list, end_sch_list, act_data_dict, CAP_type = 'PTH', Length_Type = 'Pin2Pin')
                 else:
                     if DQ_TO_DQ_mismatch:
                         act_data_dict = DQTODQMismatch(start_sch_list, start_net_list, end_sch_list, act_data_dict)
@@ -7775,6 +7928,14 @@ def BatchUpdate_Topology(specified_range=None):
                                 elif segment_list[idx1] == 'DLL Group Length Matching':
                                     result_list.append(act_data_dict[((start_sch_list[id1], start_net_list[id1],
                                                                        end_sch_list[id1]), 'DLL_Group')])
+                                elif segment_list[idx1] == 'AMD_LOther_CAP':
+                                    result_list.append(act_data_dict[(
+                                        (start_sch_list[id1], start_net_list[id1], end_sch_list[id1]),
+                                        'AMD_LOther_CAP')])
+                                elif seg == 'AMD_LOther_Via':
+                                    result_list.append(act_data_dict[(
+                                        (start_sch_list[id1], start_net_list[id1], end_sch_list[id1]),
+                                        'AMD_LOther_Via')])
                                 elif segment_list[idx1] == 'Result':
                                     cal_title_list = ['Total Mismatch', 'Layer Mismatch', 'Total Length', 'Via Count',
                                                       'Result',
@@ -7784,7 +7945,8 @@ def BatchUpdate_Topology(specified_range=None):
                                                       'Relative Length Spec(DQ to DQ)',
                                                       'Relative Length Spec(DQ to DQS)',
                                                       'CMD or ADD to CLK Length Matching',
-                                                      'CTL to CLK Length Matching', 'DLL Group Length Matching']
+                                                      'CTL to CLK Length Matching', 'DLL Group Length Matching',
+                                                      'AMD_LOther_CAP', 'AMD_LOther_Via']
 
                                     total_length_tmp = [result_list[idx_tmp] for idx_tmp in xrange(len(segment_list)) if
                                                         segment_list[idx_tmp].find('+') == -1 and segment_list[
@@ -10254,11 +10416,11 @@ def count_dimm_length():
 # Command line argument Definition
 if __name__ == '__main__':
 
-    for i in sys.argv:
-        if i.find('.xlsm') > -1:
-            xlsm_path = r'%s' % i
-            break
-    # xlsm_path = r'C:\Users\Tommy\Desktop\Software_project\bug\20190924\PyACT_for_Checklist_template2.0.xlsm'
+    # for i in sys.argv:
+    #     if i.find('.xlsm') > -1:
+    #         xlsm_path = r'%s' % i
+    #         break
+    xlsm_path = r'C:\Users\Tommy\Desktop\Software_project\bug\20191225\ENT20_D800_Cersei_SI2_CML_DT_4Layer_SIM_Checklist_A1.7_20191225.xlsm'
     # xlsm_path = r'C:\Users\Tommy\Desktop\Software_project\bug\20190912\PyACT_for_Checklist_template2.0.xlsm'
     # xlsm_path = r'C:\Users\Tommy\Desktop\Software_project\bug\20191023\8K_ENCODER_IO_BOARD_DDR4_Checklist_A1.1_20191021-1400.xlsm'
     Book(xlsm_path).set_mock_caller()
@@ -10371,7 +10533,7 @@ if __name__ == '__main__':
 # LoadAllegroFile()
 # LoadStackup()
 # LoadTXList()
-# RunSignalTopology()
-# LoadAllegroFile()
+RunSignalTopology()
 # read_allegro_data(r'C:\Users\Tommy\Desktop\Software_project\bug\D10_Bison+_X02-0415-1000.brd_allegro_report.rpt')
 # NetTypeDetect()
+# LoadStartEndComponent()
